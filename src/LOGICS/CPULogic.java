@@ -1,105 +1,138 @@
 package LOGICS;
+
 import java.util.*;
 
 public class CPULogic {
-    public static String fcfs(List<Process> procs) {
-        procs.sort(Comparator.comparingInt(p -> p.arrival));
-        int time = 0, totalWait = 0, totalTurn = 0;
-        StringBuilder sb = new StringBuilder("Gantt Chart:\n");
+
+    public static class SimResult {
+        public final List<int[]> segments; // {procIndex, start, end}
+        public final double awt;
+        public final double atat;
+        public final int maxTime;
+        public final String logText;
+
+        public SimResult(List<int[]> segments, double awt, double atat, int maxTime, String logText) {
+            this.segments = segments;
+            this.awt = awt;
+            this.atat = atat;
+            this.maxTime = maxTime;
+            this.logText = logText;
+        }
+    }
+
+    public static SimResult run(List<Process> procs, String algo, int quantum) {
         for (Process p : procs) {
-            if (time < p.arrival) time = p.arrival;
-            sb.append(p.pid).append(" [").append(time).append("-").append(time + p.burst).append("] ");
-            int tat = (time + p.burst) - p.arrival;
-            totalWait += tat - p.burst;
-            totalTurn += tat;
-            time += p.burst;
+            p.rem = p.burst;
+            p.ct = 0;
         }
-        sb.append(String.format("\nAvg Wait: %.2f | Avg Turnaround: %.2f", (double)totalWait/procs.size(), (double)totalTurn/procs.size()));
-        return sb.toString();
+
+        List<int[]> segs = new ArrayList<>();
+        if ("Round Robin".equals(algo)) {
+            simulateRR(procs, quantum, segs);
+        } else {
+            simulate(procs, algo, segs);
+        }
+
+        double totalWt = 0, totalTat = 0;
+        int maxTime = 0;
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("Algorithm : ").append(algo);
+        if ("Round Robin".equals(algo)) sb.append(" (q=").append(quantum).append(")");
+        sb.append("\n\nGantt Chart:\n  ");
+
+        for (int k = 0; k < segs.size(); k++) {
+            int[] s = segs.get(k);
+            sb.append(procs.get(s[0]).pid).append(" [").append(s[1]).append("-").append(s[2]).append("]");
+            if (k < segs.size() - 1) sb.append(" => ");
+            maxTime = Math.max(maxTime, s[2]);
+        }
+
+        sb.append("\n\n").append(String.format("%-5s %4s %4s %4s %5s %4s%n", "Job", "AT", "BT", "CT", "TAT", "WT"));
+        for (Process p : procs) {
+            int tat = p.ct - p.arrival;
+            int wt = tat - p.burst;
+            totalTat += tat;
+            totalWt += wt;
+            sb.append(String.format("%-5s %4d %4d %4d %5d %4d%n", p.pid, p.arrival, p.burst, p.ct, tat, wt));
+        }
+
+        double awt = totalWt / procs.size();
+        double atat = totalTat / procs.size();
+        return new SimResult(segs, awt, atat, maxTime, sb.toString());
     }
 
-    public static String sjf(List<Process> procs) {
-        List<Process> pending = new ArrayList<>(procs);
-        int time = 0, completed = 0, totalWait = 0, totalTurn = 0;
-        StringBuilder sb = new StringBuilder("Gantt Chart:\n");
-        while (!pending.isEmpty()) {
-            List<Process> avail = new ArrayList<>();
-            for (Process p : pending) if (p.arrival <= time) avail.add(p);
-            if (avail.isEmpty()) {
-                time = pending.stream().mapToInt(p -> p.arrival).min().getAsInt();
-                continue;
-            }
-            avail.sort(Comparator.comparingInt(p -> p.burst));
-            Process p = avail.get(0);
-            pending.remove(p);
-            sb.append(p.pid).append(" [").append(time).append("-").append(time + p.burst).append("] ");
-            int tat = (time + p.burst) - p.arrival;
-            totalWait += tat - p.burst;
-            totalTurn += tat;
-            time += p.burst;
-            completed++;
-        }
-        sb.append(String.format("\nAvg Wait: %.2f | Avg Turnaround: %.2f", (double)totalWait/completed, (double)totalTurn/completed));
-        return sb.toString();
+    private static boolean better(Process a, Process b, String algo) {
+        int ka, kb;
+        if (algo.startsWith("SJF")) { ka = a.burst; kb = b.burst; }
+        else if (algo.startsWith("SRTF")) { ka = a.rem; kb = b.rem; }
+        else if (algo.startsWith("Priority")) { ka = a.priority; kb = b.priority; }
+        else { ka = a.arrival; kb = b.arrival; }
+        if (ka != kb) return ka < kb;
+        return a.arrival < b.arrival;
     }
 
-    public static String priority(List<Process> procs) {
-        List<Process> pending = new ArrayList<>(procs);
-        int time = 0, completed = 0, totalWait = 0, totalTurn = 0;
-        StringBuilder sb = new StringBuilder("Gantt Chart:\n");
-        while (!pending.isEmpty()) {
-            List<Process> avail = new ArrayList<>();
-            for (Process p : pending) if (p.arrival <= time) avail.add(p);
-            if (avail.isEmpty()) {
-                time = pending.stream().mapToInt(p -> p.arrival).min().getAsInt();
-                continue;
+    private static void simulate(List<Process> ps, String algo, List<int[]> segs) {
+        boolean preemptive = algo.startsWith("SRTF") || algo.equals("Priority (Preemptive)");
+        int n = ps.size(), done = 0, t = 0, cur = -1;
+
+        while (done < n) {
+            if (cur == -1 || preemptive) {
+                int best = -1;
+                for (int i = 0; i < n; i++) {
+                    Process p = ps.get(i);
+                    if (p.rem > 0 && p.arrival <= t && (best == -1 || better(p, ps.get(best), algo))) {
+                        best = i;
+                    }
+                }
+                cur = best;
             }
-            avail.sort(Comparator.comparingInt(p -> p.priority));
-            Process p = avail.get(0);
-            pending.remove(p);
-            sb.append(p.pid).append(" [").append(time).append("-").append(time + p.burst).append("] ");
-            int tat = (time + p.burst) - p.arrival;
-            totalWait += tat - p.burst;
-            totalTurn += tat;
-            time += p.burst;
-            completed++;
+            if (cur == -1) { t++; continue; }
+
+            Process p = ps.get(cur);
+            addSeg(segs, cur, t, t + 1);
+            p.rem--;
+            t++;
+            if (p.rem == 0) {
+                p.ct = t;
+                done++;
+                cur = -1;
+            }
         }
-        sb.append(String.format("\nAvg Wait: %.2f | Avg Turnaround: %.2f", (double)totalWait/completed, (double)totalTurn/completed));
-        return sb.toString();
     }
 
-    public static String roundRobin(List<Process> procs, int q) {
-        procs.sort(Comparator.comparingInt(p -> p.arrival));
-        Queue<Process> queue = new LinkedList<>();
-        Map<Process, Integer> remBurst = new HashMap<>();
-        for (Process p : procs) remBurst.put(p, p.burst);
+    private static void simulateRR(List<Process> ps, int quantum, List<int[]> segs) {
+        int n = ps.size(), done = 0, t = 0, next = 0;
+        Integer[] order = new Integer[n];
+        for (int i = 0; i < n; i++) order[i] = i;
+        Arrays.sort(order, Comparator.comparingInt(x -> ps.get(x).arrival));
 
-        int time = 0, completed = 0, index = 0, totalWait = 0, totalTurn = 0;
-        StringBuilder sb = new StringBuilder("Gantt Chart:\n");
-        if (!procs.isEmpty()) time = procs.get(0).arrival;
-        while (index < procs.size() && procs.get(index).arrival <= time) queue.add(procs.get(index++));
+        Deque<Integer> q = new ArrayDeque<>();
+        while (done < n) {
+            while (next < n && ps.get(order[next]).arrival <= t) q.add(order[next++]);
+            if (q.isEmpty()) { t = ps.get(order[next]).arrival; continue; }
 
-        while (!queue.isEmpty()) {
-            Process p = queue.poll();
-            int execTime = Math.min(q, remBurst.get(p));
-            sb.append(p.pid).append(" [").append(time).append("-").append(time + execTime).append("] ");
-            time += execTime;
-            remBurst.put(p, remBurst.get(p) - execTime);
+            int i = q.poll();
+            Process p = ps.get(i);
+            int run = Math.min(quantum, p.rem);
+            addSeg(segs, i, t, t + run);
+            t += run;
+            p.rem -= run;
 
-            while (index < procs.size() && procs.get(index).arrival <= time) queue.add(procs.get(index++));
-            if (remBurst.get(p) > 0) queue.add(p);
-            else {
-                int tat = time - p.arrival;
-                totalWait += tat - p.burst;
-                totalTurn += tat;
-                completed++;
-            }
-            if (queue.isEmpty() && index < procs.size()) {
-                time = Math.max(time, procs.get(index).arrival);
-                while (index < procs.size() && procs.get(index).arrival <= time) queue.add(procs.get(index++));
+            while (next < n && ps.get(order[next]).arrival <= t) q.add(order[next++]);
+            if (p.rem > 0) q.add(i);
+            else { p.ct = t; done++; }
+        }
+    }
+
+    private static void addSeg(List<int[]> segs, int idx, int start, int end) {
+        if (!segs.isEmpty()) {
+            int[] last = segs.get(segs.size() - 1);
+            if (last[0] == idx && last[2] == start) {
+                last[2] = end;
+                return;
             }
         }
-        sb.append(String.format("\nAvg Wait: %.2f | Avg Turnaround: %.2f", (double)totalWait/completed, (double)totalTurn/completed));
-        return sb.toString();
+        segs.add(new int[]{idx, start, end});
     }
 }

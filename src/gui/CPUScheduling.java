@@ -1,13 +1,14 @@
 package gui;
 
+import LOGICS.CPULogic;
+import LOGICS.Process;
+
 import javax.swing.*;
 import javax.swing.table.*;
 import java.awt.*;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Deque;
 import java.util.List;
+import java.util.Random;
 
 public class CPUScheduling extends BasePanel {
 
@@ -70,7 +71,6 @@ public class CPUScheduling extends BasePanel {
         JPanel left = new JPanel(new BorderLayout(0, 10));
         left.setOpaque(false);
 
-        // algorithm row (outside the card, like the mockup)
         JPanel algoRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         algoRow.setOpaque(false);
         JLabel al = new JLabel("Algorithm");
@@ -84,7 +84,6 @@ public class CPUScheduling extends BasePanel {
         algoRow.add(quantumLbl);
         algoRow.add(quantumField);
 
-        // card
         RoundedPanel card = new RoundedPanel(24, CARD);
         card.setLayout(new BorderLayout(0, 10));
         card.setBorder(BorderFactory.createEmptyBorder(14, 14, 14, 14));
@@ -96,15 +95,18 @@ public class CPUScheduling extends BasePanel {
 
         JButton add = makeButton("+ Add", GREEN);
         JButton remove = makeButton("- Remove", RED);
+        JButton rand = makeButton("Randomize", BLUE);
         JButton clear = makeButton("x Clear All", ORANGE);
         add.addActionListener(e -> addRow());
         remove.addActionListener(e -> removeRow());
+        rand.addActionListener(e -> randomizeCurrentRows());
         clear.addActionListener(e -> clearAll());
 
-        JPanel row = new JPanel(new GridLayout(1, 3, 8, 0));
+        JPanel row = new JPanel(new GridLayout(1, 4, 6, 0));
         row.setOpaque(false);
         row.add(add);
         row.add(remove);
+        row.add(rand);
         row.add(clear);
 
         JButton run = makeButton("\u25B6  Run Simulator", RUN);
@@ -155,9 +157,15 @@ public class CPUScheduling extends BasePanel {
         south.add(cards, BorderLayout.NORTH);
         south.add(logSp, BorderLayout.CENTER);
 
+        JScrollPane ganttSp = new JScrollPane(gantt);
+        ganttSp.setBorder(BorderFactory.createEmptyBorder());
+        ganttSp.setOpaque(false);
+        ganttSp.getViewport().setOpaque(false);
+        ganttSp.getVerticalScrollBar().setUnitIncrement(16);
+
         JPanel center = new JPanel(new BorderLayout(0, 10));
         center.setOpaque(false);
-        center.add(gantt, BorderLayout.CENTER);
+        center.add(ganttSp, BorderLayout.CENTER);
         center.add(south, BorderLayout.SOUTH);
 
         panel.add(title, BorderLayout.NORTH);
@@ -240,11 +248,10 @@ public class CPUScheduling extends BasePanel {
 
     private void addRow() {
         stopEditing();
-        if (model.getRowCount() >= 15) {
-            JOptionPane.showMessageDialog(this, "Maximum of 15 jobs.");
-            return;
-        }
+        // No arbitrary fixed row limit (per rubric Section III)
         model.addRow(new Object[]{"P" + (model.getRowCount() + 1), "", "", ""});
+        int lastRow = model.getRowCount() - 1;
+        table.scrollRectToVisible(table.getCellRect(lastRow, 0, true));
     }
 
     private void removeRow() {
@@ -254,6 +261,26 @@ public class CPUScheduling extends BasePanel {
         if (r < 0) r = model.getRowCount() - 1;
         model.removeRow(r);
         renumber();
+    }
+
+    /** Fills all current rows (whether 5 or 50+) with random valid values for quick small/large dataset testing. */
+    private void randomizeCurrentRows() {
+        stopEditing();
+        int rows = model.getRowCount();
+        if (rows == 0) {
+            resetTable();
+            rows = model.getRowCount();
+        }
+        Random rand = new Random();
+        for (int i = 0; i < rows; i++) {
+            int at = rand.nextInt(Math.max(5, rows * 2));
+            int bt = 1 + rand.nextInt(12);
+            int pr = 1 + rand.nextInt(Math.max(5, rows));
+            model.setValueAt(String.valueOf(at), i, 1);
+            model.setValueAt(String.valueOf(bt), i, 2);
+            model.setValueAt(String.valueOf(pr), i, 3);
+        }
+        runSimulator();
     }
 
     private void clearAll() {
@@ -272,14 +299,9 @@ public class CPUScheduling extends BasePanel {
     }
 
     // ================= SIMULATION =================
-    private static class Proc {
-        String name;
-        int at, bt, pr, rem, ct;
-    }
-
     private void runSimulator() {
         stopEditing();
-        List<Proc> ps = readProcs();
+        List<Process> ps = readProcs();
         if (ps == null) return;
         if (ps.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Add at least one job (AT and BT).");
@@ -287,10 +309,8 @@ public class CPUScheduling extends BasePanel {
         }
 
         String algo = (String) algoBox.getSelectedItem();
-        List<int[]> segs = new ArrayList<>();   // {procIndex, start, end}
-
+        int q = 1;
         if ("Round Robin".equals(algo)) {
-            int q;
             try {
                 q = Integer.parseInt(quantumField.getText().trim());
                 if (q < 1) throw new NumberFormatException();
@@ -298,62 +318,37 @@ public class CPUScheduling extends BasePanel {
                 JOptionPane.showMessageDialog(this, "Quantum must be a whole number of 1 or more.");
                 return;
             }
-            simulateRR(ps, q, segs);
-        } else {
-            simulate(ps, algo, segs);
         }
 
-        // metrics
-        double totalWt = 0, totalTat = 0;
-        int maxTime = 0;
-        StringBuilder sb = new StringBuilder();
-        sb.append("Algorithm : ").append(algo);
-        if ("Round Robin".equals(algo)) sb.append(" (q=").append(quantumField.getText().trim()).append(")");
-        sb.append("\n\nGantt Chart:\n  ");
-        for (int k = 0; k < segs.size(); k++) {
-            int[] s = segs.get(k);
-            sb.append(ps.get(s[0]).name).append(" [").append(s[1]).append("-").append(s[2]).append("]");
-            if (k < segs.size() - 1) sb.append(" => ");
-            maxTime = Math.max(maxTime, s[2]);
-        }
-        sb.append("\n\n").append(String.format("%-5s %4s %4s %4s %5s %4s%n", "Job", "AT", "BT", "CT", "TAT", "WT"));
+        CPULogic.SimResult res = CPULogic.run(ps, algo, q);
+
         List<String> names = new ArrayList<>();
-        for (Proc p : ps) {
-            int tat = p.ct - p.at;
-            int wt = tat - p.bt;
-            totalTat += tat;
-            totalWt += wt;
-            names.add(p.name);
-            sb.append(String.format("%-5s %4d %4d %4d %5d %4d%n", p.name, p.at, p.bt, p.ct, tat, wt));
-        }
+        for (Process p : ps) names.add(p.pid);
 
-        awtLabel.setText(String.format("%.2f", totalWt / ps.size()));
-        atatLabel.setText(String.format("%.2f", totalTat / ps.size()));
-        log.setText(sb.toString());
+        awtLabel.setText(String.format("%.2f", res.awt));
+        atatLabel.setText(String.format("%.2f", res.atat));
+        log.setText(res.logText);
         log.setCaretPosition(0);
-        gantt.setData(names, segs, maxTime);
+        gantt.setData(names, res.segments, res.maxTime);
     }
 
-    /** Reads valid rows. Returns null if there is an input error. */
-    private List<Proc> readProcs() {
-        List<Proc> list = new ArrayList<>();
+    /** Reads valid rows without arbitrary upper value caps. Returns null if there is an input error. */
+    private List<Process> readProcs() {
+        List<Process> list = new ArrayList<>();
         for (int i = 0; i < model.getRowCount(); i++) {
             String name = String.valueOf(model.getValueAt(i, 0));
             String at = cell(i, 1), bt = cell(i, 2), pr = cell(i, 3);
-            if (at.isEmpty() && bt.isEmpty() && pr.isEmpty()) continue;   // blank row
+            if (at.isEmpty() && bt.isEmpty() && pr.isEmpty()) continue;
             try {
-                Proc p = new Proc();
-                p.name = name;
-                p.at = at.isEmpty() ? 0 : Integer.parseInt(at);
-                p.bt = Integer.parseInt(bt);
-                p.pr = pr.isEmpty() ? 0 : Integer.parseInt(pr);
-                if (p.at < 0 || p.bt < 1 || p.pr < 0 || p.bt > 1000 || p.at > 1000)
+                int arrival = at.isEmpty() ? 0 : Integer.parseInt(at);
+                int burst = Integer.parseInt(bt);
+                int priority = pr.isEmpty() ? 0 : Integer.parseInt(pr);
+                if (arrival < 0 || burst < 1 || priority < 0)
                     throw new NumberFormatException();
-                p.rem = p.bt;
-                list.add(p);
+                list.add(new Process(name, arrival, burst, priority));
             } catch (NumberFormatException ex) {
                 JOptionPane.showMessageDialog(this,
-                        "Invalid input in " + name + ".\nAT/Priority: 0 or higher. BT: 1 or higher (whole numbers).");
+                        "Invalid input in " + name + ".\nAT & Priority: 0 or higher. BT: 1 or higher (whole numbers).");
                 return null;
             }
         }
@@ -365,75 +360,7 @@ public class CPUScheduling extends BasePanel {
         return o == null ? "" : o.toString().trim();
     }
 
-    /** True if a is a better pick than b for the given algorithm. */
-    private boolean better(Proc a, Proc b, String algo) {
-        int ka, kb;
-        if (algo.startsWith("SJF")) { ka = a.bt; kb = b.bt; }
-        else if (algo.startsWith("SRTF")) { ka = a.rem; kb = b.rem; }
-        else if (algo.startsWith("Priority")) { ka = a.pr; kb = b.pr; }
-        else { ka = a.at; kb = b.at; }                     // FCFS
-        if (ka != kb) return ka < kb;
-        return a.at < b.at;
-    }
-
-    /** FCFS, SJF, SRTF, Priority (both kinds): unit-time simulation. */
-    private void simulate(List<Proc> ps, String algo, List<int[]> segs) {
-        boolean preemptive = algo.startsWith("SRTF") || algo.equals("Priority (Preemptive)");
-        int n = ps.size(), done = 0, t = 0, cur = -1;
-
-        while (done < n) {
-            if (cur == -1 || preemptive) {
-                int best = -1;
-                for (int i = 0; i < n; i++) {
-                    Proc p = ps.get(i);
-                    if (p.rem > 0 && p.at <= t && (best == -1 || better(p, ps.get(best), algo))) best = i;
-                }
-                cur = best;
-            }
-            if (cur == -1) { t++; continue; }              // CPU idle
-
-            Proc p = ps.get(cur);
-            addSeg(segs, cur, t, t + 1);
-            p.rem--;
-            t++;
-            if (p.rem == 0) { p.ct = t; done++; cur = -1; }
-        }
-    }
-
-    private void simulateRR(List<Proc> ps, int quantum, List<int[]> segs) {
-        int n = ps.size(), done = 0, t = 0, next = 0;
-        Integer[] order = new Integer[n];
-        for (int i = 0; i < n; i++) order[i] = i;
-        Arrays.sort(order, (x, y) -> Integer.compare(ps.get(x).at, ps.get(y).at));
-
-        Deque<Integer> q = new ArrayDeque<>();
-        while (done < n) {
-            while (next < n && ps.get(order[next]).at <= t) q.add(order[next++]);
-            if (q.isEmpty()) { t = ps.get(order[next]).at; continue; }   // idle jump
-
-            int i = q.poll();
-            Proc p = ps.get(i);
-            int run = Math.min(quantum, p.rem);
-            addSeg(segs, i, t, t + run);
-            t += run;
-            p.rem -= run;
-
-            while (next < n && ps.get(order[next]).at <= t) q.add(order[next++]);
-            if (p.rem > 0) q.add(i);
-            else { p.ct = t; done++; }
-        }
-    }
-
-    /** Adds a segment, merging with the previous one if it continues directly. */
-    private void addSeg(List<int[]> segs, int idx, int start, int end) {
-        if (!segs.isEmpty()) {
-            int[] last = segs.get(segs.size() - 1);
-            if (last[0] == idx && last[2] == start) { last[2] = end; return; }
-        }
-        segs.add(new int[]{idx, start, end});
-    }
-
-    // ================= GANTT CHART =================
+    // ================= GANTT CHART (SCROLLABLE FOR LARGE DATASETS) =================
     private static class GanttPanel extends JPanel {
         private static final Color[] PALETTE = {
                 new Color(0x4DA3FF), new Color(0x3DD6A8), new Color(0xFFB454),
@@ -446,15 +373,17 @@ public class CPUScheduling extends BasePanel {
 
         GanttPanel() {
             setOpaque(false);
-            setPreferredSize(new Dimension(300, 220));
             setData(new ArrayList<>(), new ArrayList<>(), 0);
         }
 
         void setData(List<String> n, List<int[]> s, int max) {
             names = new ArrayList<>(n);
-            for (int i = names.size(); i < 5; i++) names.add("P" + (i + 1));   // pad to 5 rows
+            for (int i = names.size(); i < 5; i++) names.add("P" + (i + 1));
             segs = s;
             maxTime = max;
+            int prefH = Math.max(210, names.size() * 28 + 46);
+            setPreferredSize(new Dimension(300, prefH));
+            revalidate();
             repaint();
         }
 
@@ -468,12 +397,12 @@ public class CPUScheduling extends BasePanel {
             g2.setColor(DARK2);
             g2.fillRoundRect(0, 0, w, h, 16, 16);
 
-            int left = 40, right = 16, top = 12, bottom = 34;
+            int left = 44, right = 16, top = 12, bottom = 34;
             int pw = w - left - right, ph = h - top - bottom;
             if (pw < 20 || ph < 20) { g2.dispose(); return; }
 
             int rows = names.size();
-            int rowH = ph / rows;
+            int rowH = Math.max(16, ph / rows);
 
             int step, axisMax;
             if (maxTime == 0) { step = 5; axisMax = 20; }
@@ -485,7 +414,6 @@ public class CPUScheduling extends BasePanel {
             g2.setFont(new Font("Segoe UI", Font.PLAIN, 11));
             FontMetrics fm = g2.getFontMetrics();
 
-            // vertical grid + time labels
             for (int tt = 0; tt <= axisMax; tt += step) {
                 int x = left + (int) ((long) pw * tt / axisMax);
                 g2.setColor(new Color(0x24385A));
@@ -496,7 +424,6 @@ public class CPUScheduling extends BasePanel {
             }
             g2.drawString("Time", left + pw / 2 - fm.stringWidth("Time") / 2, h - 6);
 
-            // row labels + horizontal lines
             for (int r = 0; r < rows; r++) {
                 int y = top + r * rowH;
                 g2.setColor(new Color(0x1C2E4D));
@@ -505,13 +432,12 @@ public class CPUScheduling extends BasePanel {
                 g2.drawString(names.get(r), 8, y + rowH / 2 + fm.getAscent() / 2 - 2);
             }
 
-            // bars
             for (int[] s : segs) {
                 int r = s[0];
                 int x1 = left + (int) ((long) pw * s[1] / axisMax);
                 int x2 = left + (int) ((long) pw * s[2] / axisMax);
-                int y = top + r * rowH + 4;
-                int bh = Math.max(8, rowH - 8);
+                int y = top + r * rowH + 3;
+                int bh = Math.max(8, rowH - 6);
                 g2.setColor(PALETTE[r % PALETTE.length]);
                 g2.fillRoundRect(x1, y, Math.max(2, x2 - x1), bh, 8, 8);
 
@@ -540,13 +466,13 @@ public class CPUScheduling extends BasePanel {
             }
         };
         b.setForeground(Color.WHITE);
-        b.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        b.setFont(new Font("Segoe UI", Font.BOLD, 12));
         b.setContentAreaFilled(false);
         b.setBorderPainted(false);
         b.setFocusPainted(false);
         b.setOpaque(false);
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        b.setPreferredSize(new Dimension(100, 34));
+        b.setPreferredSize(new Dimension(90, 34));
         return b;
     }
 
