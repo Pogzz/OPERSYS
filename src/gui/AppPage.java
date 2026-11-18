@@ -23,7 +23,7 @@ public class AppPage extends JPanel {
 
         pages.put("CPU Scheduling", new CPUScheduling());
         pages.put("Banker's Algorithm", new BankersWindow());
-        pages.put("Paging", placeholder("Paging"));
+        pages.put("Paging", new PagingWindow());
         pages.put("Page Replacement", placeholder("Page Replacement"));
         pages.put("Segmentation", placeholder("Segmentation"));
         pages.put("Fragmentation", placeholder("Fragmentation"));
