@@ -77,7 +77,7 @@ public class BankersWindow extends BasePanel {
         dimPanel.add(setBtn);
         dimPanel.add(randBtn);
 
-        JButton runBtn = makeButton("\u25B6  Run Simulation", RUN, 155, 32);
+        JButton runBtn = makeButton("Run Simulation", RUN, 155, 32);
         runBtn.addActionListener(e -> runSimulation());
 
         row1.add(dimPanel, BorderLayout.WEST);

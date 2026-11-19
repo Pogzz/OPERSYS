@@ -24,11 +24,11 @@ public class AppPage extends JPanel {
         pages.put("CPU Scheduling", new CPUScheduling());
         pages.put("Banker's Algorithm", new BankersWindow());
         pages.put("Paging", new PagingWindow());
-        pages.put("Page Replacement", placeholder("Page Replacement"));
-        pages.put("Segmentation", placeholder("Segmentation"));
-        pages.put("Fragmentation", placeholder("Fragmentation"));
-        pages.put("Disk Scheduling", placeholder("Disk Scheduling"));
-        pages.put("Multiprogramming", placeholder("Multiprogramming"));
+        pages.put("Page Replacement",new PageReplacementWindow());
+        pages.put("Segmentation", new SegmentationWindow());
+        pages.put("Fragmentation", new FragmentationWindow());
+//        pages.put("Disk Scheduling", new DiskWindow());
+//        pages.put("Multiprogramming", new MultiprogrammingWindow());
 
         JPanel sidebar = new BasePanel.Rounded(24, BasePanel.SIDEBAR);
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));

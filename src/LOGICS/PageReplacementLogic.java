@@ -60,4 +60,66 @@ public class PageReplacementLogic {
         }
         return "Optimal Page Faults: " + pageFaults;
     }
+    public static class Result {
+        public final int[][] frames;   
+        public final boolean[] fault;
+        public final int faults;
+
+        Result(int[][] frames, boolean[] fault, int faults) {
+            this.frames = frames;
+            this.fault = fault;
+            this.faults = faults;
+        }
+    }
+
+    public static Result simulate(String algo, int[] pages, int capacity) {
+        int n = pages.length;
+        int[][] frames = new int[n][capacity];
+        boolean[] fault = new boolean[n];
+        int[] mem = new int[capacity];
+        int[] loadedAt = new int[capacity];
+        int[] lastUsed = new int[capacity];
+        Arrays.fill(mem, -1);
+        int faults = 0;
+
+        for (int i = 0; i < n; i++) {
+            int p = pages[i];
+            int idx = -1;
+            for (int f = 0; f < capacity; f++) if (mem[f] == p) { idx = f; break; }
+
+            if (idx >= 0) {
+                lastUsed[idx] = i;                          // HIT
+            } else {                                        // FAULT
+                faults++;
+                fault[i] = true;
+                int victim = -1;
+                for (int f = 0; f < capacity; f++) if (mem[f] == -1) { victim = f; break; }
+
+                if (victim == -1) {                         // puno na
+                    if (algo.equals("FIFO")) {
+                        victim = 0;
+                        for (int f = 1; f < capacity; f++)
+                            if (loadedAt[f] < loadedAt[victim]) victim = f;
+                    } else if (algo.equals("LRU")) {
+                        victim = 0;
+                        for (int f = 1; f < capacity; f++)
+                            if (lastUsed[f] < lastUsed[victim]) victim = f;
+                    } else {                                // Optimal
+                        int farthest = -1;
+                        for (int f = 0; f < capacity; f++) {
+                            int next = n;
+                            for (int j = i + 1; j < n; j++)
+                                if (pages[j] == mem[f]) { next = j; break; }
+                            if (next > farthest) { farthest = next; victim = f; }
+                        }
+                    }
+                }
+                mem[victim] = p;
+                loadedAt[victim] = i;
+                lastUsed[victim] = i;
+            }
+            frames[i] = mem.clone();
+        }
+        return new Result(frames, fault, faults);
+    }
 }

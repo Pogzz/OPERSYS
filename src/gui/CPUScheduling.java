@@ -109,7 +109,7 @@ public class CPUScheduling extends BasePanel {
         row.add(rand);
         row.add(clear);
 
-        JButton run = makeButton("\u25B6  Run Simulator", RUN);
+        JButton run = makeButton(" Run Simulator", RUN);
         run.setPreferredSize(new Dimension(100, 40));
         run.addActionListener(e -> runSimulator());
 

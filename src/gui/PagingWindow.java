@@ -109,10 +109,10 @@ public class PagingWindow extends BasePanel {
         sp.setBorder(BorderFactory.createLineBorder(BLUE, 1));
         sp.getViewport().setBackground(Color.WHITE);
 
-        JButton addBtn  = makeButton("+ Add page", BLUE);
+        JButton addBtn  = makeButton("+ Add page", GREEN);
         JButton remBtn  = makeButton("- Remove page", RED);
-        JButton randBtn = makeButton("Randomize", ORANGE);
-        JButton clrBtn  = makeButton("x Clear all", new Color(0x64748B));
+        JButton randBtn = makeButton("Randomize", BLUE );
+        JButton clrBtn  = makeButton("x Clear all", ORANGE);
 
         addBtn.addActionListener(e -> addRow());
         remBtn.addActionListener(e -> removeRow());
@@ -146,7 +146,7 @@ public class PagingWindow extends BasePanel {
                 BorderFactory.createLineBorder(BLUE, 1),
                 BorderFactory.createEmptyBorder(4, 8, 4, 8)));
 
-        JButton runBtn = makeButton("\u25B6  Run Simulation", RUN);
+        JButton runBtn = makeButton("Run Simulation", RUN);
         runBtn.setPreferredSize(new Dimension(135, 32));
         runBtn.addActionListener(e -> runSimulation());
 
