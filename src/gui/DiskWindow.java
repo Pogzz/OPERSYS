@@ -13,6 +13,7 @@ import java.util.Random;
 
 public class DiskWindow extends BasePanel {
 
+    // Color palette used across inputs, buttons, dark cards, and the seek graph
     private static final Color NAVY   = new Color(0x120078);
     private static final Color BLUE   = new Color(0x3B6FD4);
     private static final Color DARK   = new Color(0x0F1B2D);
@@ -21,32 +22,38 @@ public class DiskWindow extends BasePanel {
     private static final Color RUN    = new Color(0x1F57E0);
     private static final Color ACCENT = new Color(0x3EA0FF);
 
+    // Supported disk scheduling algorithms shown in the selector and comparison table
     private static final String[] ALGOS = {
         "SSTF", "LOOK", "Elevator (SCAN)", "C-SCAN", "FIFO (FCFS)",
     };
 
+    // Input fields for request queue, starting head position, max cylinder, and random count
     private final JTextField queueField = new JTextField("98 183 37 122 14 124 65 67");
     private final JTextField headField  = new JTextField("53", 4);
     private final JTextField maxField   = new JTextField("199", 4);
     private final JTextField countField = new JTextField("8", 4);
     private final JComboBox<String> algoBox = new JComboBox<>(ALGOS);
 
+    // Visualization canvas and bottom summary metric labels
     private final SeekGraphPanel graphPanel = new SeekGraphPanel();
     private final JLabel totalValLabel = new JLabel("0 tracks", SwingConstants.CENTER);
     private final JLabel avgValLabel   = new JLabel("0.00", SwingConstants.CENTER);
 
+    // Read-only table comparing total and average seek distances across all algorithms
     private final DefaultTableModel compModel = new DefaultTableModel(
             new String[]{"Algorithm", "Total", "Avg/seek"}, 0) {
         @Override public boolean isCellEditable(int r, int c) { return false; }
     };
     private final JTable compTable = new JTable(compModel);
 
+    // Read-only table listing step-by-step track visits and distance traversed
     private final DefaultTableModel seqModel = new DefaultTableModel(
             new String[]{"Seq", "Track", "Traversed"}, 0) {
         @Override public boolean isCellEditable(int r, int c) { return false; }
     };
     private final JTable seqTable = new JTable(seqModel);
 
+    // Initializes the Disk Scheduling window and runs the default sample queue
     public DiskWindow() {
         super("Disk Scheduling");
 
@@ -55,12 +62,12 @@ public class DiskWindow extends BasePanel {
         gc.fill = GridBagConstraints.BOTH;
         gc.weighty = 1;
 
-        // Left column: input controls + head movement graph + metric cards
+        // Left column: input controls, head movement graph, and metric cards
         gc.gridx = 0; gc.weightx = 0.65;
         gc.insets = new Insets(0, 0, 0, 14);
         content.add(buildLeftArea(), gc);
 
-        // Right column: algorithm comparison table + step sequence table
+        // Right column: algorithm comparison table and step sequence table
         gc.gridx = 1; gc.weightx = 0.35;
         gc.insets = new Insets(0, 0, 0, 0);
         content.add(buildRightArea(), gc);
@@ -69,7 +76,7 @@ public class DiskWindow extends BasePanel {
         runSimulation();
     }
 
-    // Builds the left workspace containing inputs, seek chart, and summary boxes
+    // Builds the left workspace containing input controls and the seek graph card
     private JPanel buildLeftArea() {
         JPanel left = new JPanel(new BorderLayout(0, 12));
         left.setOpaque(false);
@@ -79,12 +86,12 @@ public class DiskWindow extends BasePanel {
         return left;
     }
 
-    // Two-row input controls for request queue, track boundaries, and algorithm selector
+    // Builds the two-row header for request queue, algorithm selector, head/max/count, and action buttons
     private JPanel buildInputHeader() {
         JPanel wrap = new JPanel(new GridLayout(2, 1, 0, 8));
         wrap.setOpaque(false);
 
-        // Row 1: Queue input + Algorithm selector
+        // Row 1: Queue input field and Algorithm dropdown
         JPanel row1 = new JPanel(new BorderLayout(10, 0));
         row1.setOpaque(false);
 
@@ -111,7 +118,7 @@ public class DiskWindow extends BasePanel {
         row1.add(qWrap, BorderLayout.CENTER);
         row1.add(aWrap, BorderLayout.EAST);
 
-        // Row 2: Head, Max track, Random count, Randomize, and Run buttons
+        // Row 2: Head, Max track, Count fields, Randomize button, and Run button
         JPanel row2 = new JPanel(new BorderLayout(8, 0));
         row2.setOpaque(false);
 
@@ -143,12 +150,14 @@ public class DiskWindow extends BasePanel {
         return wrap;
     }
 
+    // Creates a bold input label for numeric fields
     private JLabel makeFieldLabel(String text) {
         JLabel l = new JLabel(text);
         l.setFont(new Font("Segoe UI", Font.BOLD, 13));
         return l;
     }
 
+    // Applies centered bold font and blue border to small numeric text boxes
     private JTextField styleNumBox(JTextField tf) {
         tf.setFont(new Font("Segoe UI", Font.BOLD, 13));
         tf.setHorizontalAlignment(SwingConstants.CENTER);
@@ -157,7 +166,7 @@ public class DiskWindow extends BasePanel {
         return tf;
     }
 
-    // Dark visualization card holding the head movement chart and bottom stat boxes
+    // Builds the dark card holding the head movement chart and bottom stat boxes
     private JPanel buildGraphCard() {
         RoundedPanel card = new RoundedPanel(24, DARK);
         card.setLayout(new BorderLayout(0, 12));
@@ -179,6 +188,7 @@ public class DiskWindow extends BasePanel {
         return card;
     }
 
+    // Creates a dark rounded stat box displaying a metric caption and value
     private JPanel makeStatBox(String caption, JLabel valueLbl) {
         RoundedPanel box = new RoundedPanel(16, DARK2);
         box.setLayout(new BorderLayout(0, 2));
@@ -198,7 +208,7 @@ public class DiskWindow extends BasePanel {
         return box;
     }
 
-    // Builds the right column with Comparison (top) and Sequence (bottom) dark cards
+    // Builds the right column stacked with Comparison (top) and Sequence (bottom) cards
     private JPanel buildRightArea() {
         JPanel right = new JPanel(new GridLayout(2, 1, 0, 12));
         right.setOpaque(false);
@@ -208,6 +218,7 @@ public class DiskWindow extends BasePanel {
         return right;
     }
 
+    // Wraps a styled dark table inside a titled dark rounded card
     private JPanel wrapTableCard(String heading, JTable table) {
         RoundedPanel card = new RoundedPanel(22, DARK);
         card.setLayout(new BorderLayout(0, 8));
@@ -227,6 +238,7 @@ public class DiskWindow extends BasePanel {
         return card;
     }
 
+    // Applies dark theme colors, cell centering, and header styling to a JTable
     private void styleDarkTable(JTable t) {
         t.setRowHeight(26);
         t.setGridColor(new Color(0x24385A));
@@ -270,7 +282,7 @@ public class DiskWindow extends BasePanel {
         t.getTableHeader().setReorderingAllowed(false);
     }
 
-    // Populates the queue field with random cylinder requests within [0, maxTrack]
+    // Generates a random initial head and request queue within [0, maxTrack] and runs simulation
     private void generateRandomQueue() {
         int maxTrack, count;
         try {
@@ -297,7 +309,7 @@ public class DiskWindow extends BasePanel {
         runSimulation();
     }
 
-    // Validates inputs, runs all algorithms for comparison, and updates the active graph
+    // Validates inputs, simulates all algorithms for comparison, and plots the active trajectory
     private void runSimulation() {
         int head, maxTrack;
         try {
@@ -337,7 +349,7 @@ public class DiskWindow extends BasePanel {
 
         countField.setText(String.valueOf(reqs.size()));
 
-        // Run every algorithm to fill the Comparison table
+        // Run all algorithms to populate the Comparison table
         compModel.setRowCount(0);
         String selectedAlgo = (String) algoBox.getSelectedItem();
         DiskResult activeResult = null;
@@ -360,7 +372,7 @@ public class DiskWindow extends BasePanel {
         totalValLabel.setText(activeResult.totalMovement + " tracks");
         avgValLabel.setText(String.format("%.2f", activeResult.avgSeek));
 
-        // Update Sequence breakdown table
+        // Update step-by-step Sequence breakdown table
         seqModel.setRowCount(0);
         for (int i = 0; i < activeResult.sequence.size(); i++) {
             String stepLabel = (i == 0) ? "Start" : String.valueOf(i);
@@ -371,11 +383,11 @@ public class DiskWindow extends BasePanel {
             });
         }
 
-        // Redraw seek trajectory graph
+        // Redraw the seek trajectory graph
         graphPanel.setTrajectory(activeResult.sequence, maxTrack);
     }
 
-    // Custom canvas plotting the disk arm trajectory across cylinders (X) and steps (Y)
+    // Custom canvas plotting the disk arm seek path across cylinders (X) and steps (Y)
     private static class SeekGraphPanel extends JPanel {
         private List<Integer> sequence = new ArrayList<>();
         private int maxTrack = 199;
@@ -384,12 +396,14 @@ public class DiskWindow extends BasePanel {
             setOpaque(false);
         }
 
+        // Updates the seek sequence and cylinder scale, then triggers a repaint
         void setTrajectory(List<Integer> sequence, int maxTrack) {
             this.sequence = new ArrayList<>(sequence);
             this.maxTrack = Math.max(1, maxTrack);
             repaint();
         }
 
+        // Renders cylinder grid lines, orange seek path lines, and cylinder node markers
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -404,7 +418,7 @@ public class DiskWindow extends BasePanel {
             int plotW = Math.max(40, w - padL - padR);
             int plotH = Math.max(40, h - padT - padB);
 
-            // Top cylinder scale ticks (0 .. maxTrack)
+            // Draw top cylinder axis scale ticks (0 .. maxTrack)
             g2.setFont(new Font("Consolas", Font.PLAIN, 10));
             int ticks = 5;
             for (int t = 0; t <= ticks; t++) {
@@ -427,7 +441,7 @@ public class DiskWindow extends BasePanel {
             int n = sequence.size();
             double stepY = (double) plotH / (n - 1);
 
-            // Connect seek points with smooth segments
+            // Draw orange line segments connecting consecutive head positions
             g2.setStroke(new BasicStroke(2.2f));
             for (int i = 0; i < n - 1; i++) {
                 int x1 = padL + (int) Math.round((sequence.get(i) / (double) maxTrack) * plotW);
@@ -439,7 +453,7 @@ public class DiskWindow extends BasePanel {
                 g2.drawLine(x1, y1, x2, y2);
             }
 
-            // Draw nodes and track labels
+            // Draw circular dots and cylinder number labels at each visited track
             for (int i = 0; i < n; i++) {
                 int val = sequence.get(i);
                 int x = padL + (int) Math.round((val / (double) maxTrack) * plotW);
@@ -448,7 +462,7 @@ public class DiskWindow extends BasePanel {
                 g2.setColor(i == 0 ? new Color(0x4ADE80) : ACCENT);
                 g2.fillOval(x - 4, y - 4, 8, 8);
 
-                // Avoid text crowding when there are many requests
+                // Skip intermediate labels on very large queues to prevent text overlap
                 if (n <= 25 || i == 0 || i == n - 1 || i % (n / 20 + 1) == 0) {
                     g2.setFont(new Font("Segoe UI", Font.BOLD, 10));
                     g2.setColor(Color.WHITE);
@@ -460,6 +474,7 @@ public class DiskWindow extends BasePanel {
         }
     }
 
+    // Creates a rounded button with custom background color and dimensions
     private JButton makeButton(String text, Color bg, int w, int h) {
         JButton b = new JButton(text) {
             @Override
@@ -484,6 +499,7 @@ public class DiskWindow extends BasePanel {
         return b;
     }
 
+    // JPanel with anti-aliased rounded corners
     private static class RoundedPanel extends JPanel {
         private final int radius;
         RoundedPanel(int radius, Color bg) {

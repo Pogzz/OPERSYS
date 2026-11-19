@@ -9,6 +9,7 @@ import java.util.Random;
 
 public class BankersWindow extends BasePanel {
 
+    // Color palette used across buttons, table headers, and result cards
     private static final Color NAVY   = new Color(0x120078);
     private static final Color BLUE   = new Color(0x3B6FD4);
     private static final Color DARK   = new Color(0x0F1B2D);
@@ -19,19 +20,23 @@ public class BankersWindow extends BasePanel {
     private static final Color RUN    = new Color(0x1F57E0);
     private static final Color ACCENT = new Color(0x3EA0FF);
 
+    // Current number of processes (n) and resource types (m)
     private int nProc = 5;
     private int mRes  = 4;
 
+    // Input fields for process count, resource count, and total resource instances
     private final JTextField procField = new JTextField("5", 3);
     private final JTextField resField  = new JTextField("4", 3);
     private final JPanel totalResPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
     private JTextField[] totalFields   = new JTextField[0];
 
+    // Table components and output status displays
     private DefaultTableModel model;
     private final JTable table = new JTable();
     private final JLabel statusBadge = new JLabel("READY", SwingConstants.CENTER);
     private final JTextArea resultArea = new JTextArea();
 
+    // Initializes the Banker's Algorithm window and loads initial random data
     public BankersWindow() {
         super("Banker's Algorithm");
 
@@ -44,12 +49,12 @@ public class BankersWindow extends BasePanel {
         randomizeData();
     }
 
- // ================= TOP CONTROLS =================
+    // Builds the top control bar with dimension inputs, action buttons, and total resource fields
     private JPanel buildTopControls() {
         JPanel wrapper = new JPanel(new BorderLayout(0, 8));
         wrapper.setOpaque(false);
 
-        // ROW 1: Dimensions + Set + Randomize (Left) | Run Simulation (Right)
+        // Row 1: Process/Resource dimensions, Set, Randomize, and Run Simulation
         JPanel row1 = new JPanel(new BorderLayout(10, 0));
         row1.setOpaque(false);
 
@@ -83,7 +88,7 @@ public class BankersWindow extends BasePanel {
         row1.add(dimPanel, BorderLayout.WEST);
         row1.add(runBtn, BorderLayout.EAST);
 
-        // ROW 2: Total Resources (Left) | + / - Process & Resource buttons (Right)
+        // Row 2: Total resources inputs and +/- buttons for processes and resources
         JPanel row2 = new JPanel(new BorderLayout(10, 0));
         row2.setOpaque(false);
 
@@ -97,6 +102,7 @@ public class BankersWindow extends BasePanel {
         JButton addResBtn  = makeButton("+ Resource", BLUE, 106, 28);
         JButton delResBtn  = makeButton("- Resource", RED, 104, 28);
 
+        // Adds a process row and recalculates Need/Available
         addProcBtn.addActionListener(e -> {
             nProc++;
             procField.setText(String.valueOf(nProc));
@@ -104,6 +110,7 @@ public class BankersWindow extends BasePanel {
             recalculateTable();
         });
 
+        // Removes a process row if more than 1 remains
         delProcBtn.addActionListener(e -> {
             if (nProc > 1) {
                 nProc--;
@@ -113,6 +120,7 @@ public class BankersWindow extends BasePanel {
             }
         });
 
+        // Adds a resource column across all matrix sections
         addResBtn.addActionListener(e -> {
             mRes++;
             resField.setText(String.valueOf(mRes));
@@ -120,6 +128,7 @@ public class BankersWindow extends BasePanel {
             recalculateTable();
         });
 
+        // Removes a resource column if more than 1 remains
         delResBtn.addActionListener(e -> {
             if (mRes > 1) {
                 mRes--;
@@ -141,6 +150,8 @@ public class BankersWindow extends BasePanel {
         wrapper.add(row2, BorderLayout.SOUTH);
         return wrapper;
     }
+
+    // Applies centered bold font and blue border to small numeric text fields
     private void styleInputField(JTextField tf) {
         tf.setHorizontalAlignment(SwingConstants.CENTER);
         tf.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -148,7 +159,7 @@ public class BankersWindow extends BasePanel {
         tf.setBorder(BorderFactory.createLineBorder(BLUE, 1));
     }
 
-    // ================= CENTER TABLE =================
+    // Builds the center card holding the unified Banker's matrix table
     private JPanel buildCenterTable() {
         RoundedPanel card = new RoundedPanel(24, CARD);
         card.setLayout(new BorderLayout(0, 8));
@@ -178,7 +189,7 @@ public class BankersWindow extends BasePanel {
         return card;
     }
 
-    // ================= BOTTOM RESULT =================
+    // Builds the bottom dark card displaying the SAFE/UNSAFE badge and step-by-step execution log
     private JPanel buildBottomResult() {
         RoundedPanel panel = new RoundedPanel(24, DARK);
         panel.setLayout(new BorderLayout(0, 8));
@@ -213,7 +224,7 @@ public class BankersWindow extends BasePanel {
         return panel;
     }
 
-    // ================= GRID BUILDER =================
+    // Validates and applies user-entered process (n) and resource (m) counts
     private void applyDimensions() {
         try {
             int p = Integer.parseInt(procField.getText().trim());
@@ -231,13 +242,15 @@ public class BankersWindow extends BasePanel {
         }
     }
 
+    // Returns A-Z for the first 26 resources and R27+ beyond that
     private String resourceName(int idx) {
         if (idx < 26) return String.valueOf((char) ('A' + idx));
         return "R" + (idx + 1);
     }
 
+    // Reconstructs the Total Resources inputs and the 4-section matrix table for pCount x rCount
     private void rebuildGrid(int pCount, int rCount) {
-        // 1. Rebuild Total Resources fields
+        // Rebuild Total Resources input boxes
         totalResPanel.removeAll();
         JLabel trLbl = new JLabel("Total resources:");
         trLbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
@@ -258,7 +271,7 @@ public class BankersWindow extends BasePanel {
         totalResPanel.revalidate();
         totalResPanel.repaint();
 
-        // 2. Build Unified Table: Process | Allocation | Max | Available | Need
+        // Build columns for Process | Allocation | Max | Available | Need
         int totalCols = 1 + (rCount * 4);
         String[] cols = new String[totalCols];
         cols[0] = "";
@@ -271,7 +284,7 @@ public class BankersWindow extends BasePanel {
         model = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
-                // Only Allocation and Max are editable
+                // Allow editing only in Allocation and Max columns
                 return c >= 1 && c <= 2 * mRes;
             }
         };
@@ -285,6 +298,7 @@ public class BankersWindow extends BasePanel {
             model.addRow(row);
         }
 
+        // Recalculate Available and Need automatically whenever Allocation or Max changes
         model.addTableModelListener(e -> {
             if (e.getColumn() >= 1 && e.getColumn() <= 2 * mRes) {
                 SwingUtilities.invokeLater(this::recalculateTable);
@@ -295,6 +309,7 @@ public class BankersWindow extends BasePanel {
         styleUnifiedTable();
     }
 
+    // Applies section background tinting, column sizing, and 2-row grouped headers to the table
     private void styleUnifiedTable() {
         table.setRowHeight(30);
         table.setGridColor(BLUE);
@@ -305,7 +320,7 @@ public class BankersWindow extends BasePanel {
         table.setSelectionBackground(new Color(0xCFE0FF));
         table.setSelectionForeground(Color.BLACK);
 
-        // If there are many resource columns, enable horizontal scrolling so columns don't squish
+        // Enable horizontal scrolling when there are many resource columns
         int totalCols = table.getColumnCount();
         if (totalCols > 17) {
             table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
@@ -329,13 +344,13 @@ public class BankersWindow extends BasePanel {
                         setBackground(new Color(0xEEF3FC));
                         setFont(new Font("Segoe UI", Font.BOLD, 13));
                     } else if (c <= mRes) {
-                        setBackground(Color.WHITE);              // Allocation
+                        setBackground(Color.WHITE);              // Allocation section
                     } else if (c <= 2 * mRes) {
-                        setBackground(new Color(0xF7FAFF));      // Max
+                        setBackground(new Color(0xF7FAFF));      // Max section
                     } else if (c <= 3 * mRes) {
-                        setBackground(new Color(0xEFF8F4));      // Available
+                        setBackground(new Color(0xEFF8F4));      // Available section
                     } else {
-                        setBackground(new Color(0xFFF9EE));      // Need
+                        setBackground(new Color(0xFFF9EE));      // Need section
                     }
                 }
                 return this;
@@ -349,7 +364,7 @@ public class BankersWindow extends BasePanel {
         header.setDefaultRenderer(new GroupedHeaderRenderer());
     }
 
-    /** 2-row grouped header: Process | Allocation | Max | Available | Need over A, B, C, D... */
+    // Custom 2-row table header grouping resource sub-columns under Allocation, Max, Available, and Need
     private class GroupedHeaderRenderer extends JComponent implements TableCellRenderer {
         private int col;
         private String subLabel = "";
@@ -362,6 +377,7 @@ public class BankersWindow extends BasePanel {
             return this;
         }
 
+        // Draws the top group header banner and bottom individual resource label
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -395,7 +411,7 @@ public class BankersWindow extends BasePanel {
                 g2.setColor(topBg);
                 g2.fillRect(0, 0, w, halfH);
 
-                // Compute exact pixel span across the mRes columns in this group
+                // Calculate total pixel width across all columns in this section to center groupTitle
                 TableColumnModel cm = table.getColumnModel();
                 int groupStartCol = 1 + secIdx * mRes;
                 int groupWidth = 0;
@@ -426,7 +442,7 @@ public class BankersWindow extends BasePanel {
         }
     }
 
-    // ================= RANDOMIZE & AUTO-CALC =================
+    // Populates Total Resources, Allocation, and Max with valid random values
     private void randomizeData() {
         stopEditing();
         Random rand = new Random();
@@ -455,6 +471,7 @@ public class BankersWindow extends BasePanel {
         resultArea.setText("Set n and m, click Randomize, then click Run Simulation.");
     }
 
+    // Recomputes Need (Max - Allocation) and Available (Total - sum of Allocation)
     private void recalculateTable() {
         int[] totals = new int[mRes];
         int[] sumAlloc = new int[mRes];
@@ -479,6 +496,7 @@ public class BankersWindow extends BasePanel {
         }
     }
 
+    // Safely parses an object into an integer, returning 0 on blank or invalid input
     private int parseSafe(Object o) {
         if (o == null) return 0;
         try {
@@ -488,11 +506,12 @@ public class BankersWindow extends BasePanel {
         }
     }
 
+    // Commits any active cell edit in the table
     private void stopEditing() {
         if (table.isEditing()) table.getCellEditor().stopCellEditing();
     }
 
-    // ================= RUN SIMULATION =================
+    // Validates matrices, runs Banker's safety check, and prints the safe sequence or deadlock log
     private void runSimulation() {
         stopEditing();
         recalculateTable();
@@ -562,7 +581,7 @@ public class BankersWindow extends BasePanel {
         resultArea.setCaretPosition(0);
     }
 
-    // ================= HELPERS =================
+    // Creates a rounded button with custom background color and dimensions
     private JButton makeButton(String text, Color bg, int w, int h) {
         JButton b = new JButton(text) {
             @Override
@@ -587,6 +606,7 @@ public class BankersWindow extends BasePanel {
         return b;
     }
 
+    // JPanel with anti-aliased rounded corners
     private static class RoundedPanel extends JPanel {
         private final int radius;
         RoundedPanel(int radius, Color bg) {

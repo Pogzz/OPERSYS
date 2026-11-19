@@ -9,20 +9,23 @@ import java.util.Arrays;
 
 public class PageReplacementWindow extends BasePanel {
 
+    // Color palette used across header inputs, buttons, and table highlights
     private static final Color NAVY = new Color(0x120078);
     private static final Color BLUE = new Color(0x3B6FD4);
     private static final Color ORANGE = new Color(0xE8A010);
     private static final Color RUN    = new Color(0x1F57E0);
 
+    // Random generator for creating random page reference strings
     private final java.util.Random rng = new java.util.Random();
 
+    // Top input fields for reference string, sequence length, frame count, and algorithm
     private final JTextField refField = new RoundField("", 24, "e.g. 0 1 2 3 4 5 6");
-
     private final JTextField lengthField = numberField("10");
     private final JTextField framesField = numberField("3");
     private final JComboBox<String> algo = new JComboBox<>(new String[]{"FIFO", "LRU", "Optimal"});
-    private final DefaultTableModel model = new DefaultTableModel();
 
+    // Page replacement simulation grid table
+    private final DefaultTableModel model = new DefaultTableModel();
     private final JTable table = new JTable(model) {
         @Override
         public boolean getScrollableTracksViewportWidth() {
@@ -30,9 +33,11 @@ public class PageReplacementWindow extends BasePanel {
         }
     };
 
+    // Bottom summary labels showing Algorithm, References, Faults, and Hits
     private final JLabel lblAlgo = statValue("-"), lblRefs = statValue("-"),
                          lblFaults = statValue("-"), lblHits = statValue("-");
 
+    // Initializes the Page Replacement window with top controls, center grid, and bottom stats
     public PageReplacementWindow() {
         super("Page Replacement");
 
@@ -53,7 +58,7 @@ public class PageReplacementWindow extends BasePanel {
         JButton random = new RoundButton("Randomize", ORANGE, Color.WHITE, null);
         top.add(random);
 
-        // gitna: table
+        // Center: Page replacement frame-by-frame table
         table.setRowHeight(28);
         table.setTableHeader(null);
         table.setGridColor(new Color(0xB8BCC8));
@@ -63,7 +68,7 @@ public class PageReplacementWindow extends BasePanel {
         sp.setOpaque(false);
         sp.getViewport().setBackground(CONTENT_BG);
 
-        // baba: stats
+        // Bottom: Summary statistics bar
         JPanel stats = new Rounded(18, NAVY);
         stats.setLayout(new GridLayout(1, 4, 10, 0));
         stats.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -79,7 +84,7 @@ public class PageReplacementWindow extends BasePanel {
         run.addActionListener(e -> runSimulation());
         random.addActionListener(e -> randomize());
 
-        // Habang nagta-type sa Reference, sumusunod agad ang Length sa bilang ng numero
+        // Automatically updates Length whenever the user types in the Reference field
         refField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             @Override public void insertUpdate(javax.swing.event.DocumentEvent e)  { syncLength(); }
             @Override public void removeUpdate(javax.swing.event.DocumentEvent e)  { syncLength(); }
@@ -87,15 +92,15 @@ public class PageReplacementWindow extends BasePanel {
         });
     }
 
-    // Binibilang ang mga numero sa Reference at inilalagay sa Length
+    // Counts the numbers in the Reference field and updates the Length field
     private void syncLength() {
         String t = refField.getText().trim();
-        if (t.isEmpty()) return;   // kung blangko, iwan ang huling Length
+        if (t.isEmpty()) return; // Keep last Length if Reference is cleared
         int count = (int) Arrays.stream(t.split("[\\s,]+")).filter(x -> !x.isEmpty()).count();
         lengthField.setText(String.valueOf(count));
     }
 
-
+    // Generates a random reference string of the specified Length (pages 0..9) and runs simulation
     private void randomize() {
         int len = readInt(lengthField, "Length", 10000);
         if (len < 0) return;
@@ -103,22 +108,21 @@ public class PageReplacementWindow extends BasePanel {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < len; i++) {
             if (i > 0) sb.append(' ');
-            sb.append(rng.nextInt(10));              // pages 0 hanggang 9
+            sb.append(rng.nextInt(10)); // Random page numbers from 0 to 9
         }
         refField.setText(sb.toString());
         runSimulation();
     }
 
+    // Validates inputs, runs FIFO/LRU/Optimal page replacement, and populates the results table
     private void runSimulation() {
-        // 1. blangko
+        // Check for empty Reference input
         if (refField.getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                    "Invalid input");
+            JOptionPane.showMessageDialog(this, "Invalid input");
             return;
         }
 
-        // 1b. kung iba ang Length sa bilang ng reference, ayusin ang reference:
-        //     mas maliit = puputulin, mas malaki = dadagdagan ng random na numero
+        // Trim or pad Reference string if Length was manually changed
         int wanted = readInt(lengthField, "Length", 10000);
         if (wanted < 0) return;
         String[] tok = Arrays.stream(refField.getText().trim().split("[\\s,]+"))
@@ -132,7 +136,7 @@ public class PageReplacementWindow extends BasePanel {
             refField.setText(sb.toString());
         }
 
-        // 2. basahin ang input (kahit ilang numero)
+        // Parse reference string into integer page numbers
         int[] refs;
         try {
             refs = Arrays.stream(refField.getText().trim().split("[\\s,]+"))
@@ -142,7 +146,7 @@ public class PageReplacementWindow extends BasePanel {
             return;
         }
 
-        // 3. bawal ang negatibo
+        // Reject negative page numbers
         for (int x : refs) {
             if (x < 0) {
                 JOptionPane.showMessageDialog(this, "No negative");
@@ -150,16 +154,16 @@ public class PageReplacementWindow extends BasePanel {
             }
         }
 
-        // 4. frames
+        // Validate frame capacity
         int nFrames = readInt(framesField, "Frames", 100);
         if (nFrames < 0) return;
 
-        lengthField.setText(String.valueOf(refs.length));   // sundan ng Length ang na-type
+        lengthField.setText(String.valueOf(refs.length));
         String a = (String) algo.getSelectedItem();
 
         PageReplacementLogic.Result r = PageReplacementLogic.simulate(a, refs, nFrames);
 
-        // row 0 = Ref #, rows 1..n = F1..Fn, huling row = Results
+        // Build 2D table data: row 0 = Ref #, rows 1..n = F1..Fn, last row = Fault/Hit
         int cols = refs.length + 1;
         Object[][] data = new Object[nFrames + 2][cols];
         data[0][0] = "Ref #";
@@ -181,7 +185,7 @@ public class PageReplacementWindow extends BasePanel {
         lblHits.setText(String.valueOf(refs.length - r.faults));
     }
 
-    // Length at Frames: nasa gitna ang numero
+    // Creates a centered bold numeric input field for Length and Frames
     private static JTextField numberField(String text) {
         RoundField f = new RoundField(text, 3, null);
         f.setHorizontalAlignment(SwingConstants.CENTER);
@@ -190,12 +194,12 @@ public class PageReplacementWindow extends BasePanel {
         return f;
     }
 
-
+    // Rounded button with hover/press darkening and optional outline
     private static class RoundButton extends JButton {
-        private static final int RADIUS = 14;   // ← border radius ng button
-        private static final int HEIGHT = 34;   // ← taas ng button
+        private static final int RADIUS = 14;
+        private static final int HEIGHT = 34;
         private final Color base;
-        private final Color outline;            // null = walang outline
+        private final Color outline;
 
         RoundButton(String text, Color bg, Color fg, Color outline) {
             super(text);
@@ -212,6 +216,7 @@ public class PageReplacementWindow extends BasePanel {
             setBorder(BorderFactory.createEmptyBorder(6, 20, 6, 20));
         }
 
+        // Enforces uniform button height
         @Override
         public Dimension getPreferredSize() {
             Dimension d = super.getPreferredSize();
@@ -219,12 +224,14 @@ public class PageReplacementWindow extends BasePanel {
             return d;
         }
 
+        // Darkens a color by the given percentage for hover and press states
         private static Color darken(Color c, double amount) {
             return new Color((int) (c.getRed() * (1 - amount)),
                              (int) (c.getGreen() * (1 - amount)),
                              (int) (c.getBlue() * (1 - amount)));
         }
 
+        // Paints the rounded button fill and optional border
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -240,23 +247,24 @@ public class PageReplacementWindow extends BasePanel {
                 g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, RADIUS, RADIUS);
             }
             g2.dispose();
-            super.paintComponent(g);   // ipinipinta ang text
+            super.paintComponent(g);
         }
     }
 
-    // Text field na may rounded na background at border (border radius)
+    // Custom text field with blue border and optional placeholder hint text
     private static class RoundField extends JTextField {
-        private static final int RADIUS = 0;   // ← border radius, palitan ang numero
-        private static final int HEIGHT = 34;   // ← taas ng field
+        private static final int RADIUS = 0;
+        private static final int HEIGHT = 34;
         private final String hint;
 
         RoundField(String text, int columns, String hint) {
             super(text, columns);
             this.hint = hint;
-            setOpaque(false);                                   // para hindi lumabas ang kanto
+            setOpaque(false);
             setBorder(BorderFactory.createEmptyBorder(4, 10, 4, 10));
         }
 
+        // Enforces uniform text field height
         @Override
         public Dimension getPreferredSize() {
             Dimension d = super.getPreferredSize();
@@ -264,6 +272,7 @@ public class PageReplacementWindow extends BasePanel {
             return d;
         }
 
+        // Paints white background and draws hint text when empty
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -286,18 +295,19 @@ public class PageReplacementWindow extends BasePanel {
             }
         }
 
+        // Paints the outer blue border around the text field
         @Override
         protected void paintBorder(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2.setColor(BLUE);
-            g2.setStroke(new BasicStroke(1));                // ← kapal ng border
+            g2.setStroke(new BasicStroke(1));
             g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, RADIUS, RADIUS);
             g2.dispose();
         }
     }
 
-    // Binabasa ang buong numero (1 hanggang max). Nagbabalik ng -1 kung mali.
+    // Parses a positive integer between 1 and max, returning -1 and showing an alert if invalid
     private int readInt(JTextField f, String label, int max) {
         try {
             int v = Integer.parseInt(f.getText().trim());
@@ -310,6 +320,7 @@ public class PageReplacementWindow extends BasePanel {
         }
     }
 
+    // Creates a light-blue centered value label for the bottom statistics bar
     private static JLabel statValue(String t) {
         JLabel l = new JLabel(t, SwingConstants.CENTER);
         l.setForeground(new Color(0x5BB8FF));
@@ -317,6 +328,7 @@ public class PageReplacementWindow extends BasePanel {
         return l;
     }
 
+    // Pairs a white caption label with a metric value label inside the bottom bar
     private static JPanel statBox(String title, JLabel value) {
         JPanel p = new JPanel(new GridLayout(2, 1));
         p.setOpaque(false);
@@ -328,6 +340,7 @@ public class PageReplacementWindow extends BasePanel {
         return p;
     }
 
+    // Styles header/footer rows in navy and highlights Fault (red) vs Hit (green)
     private static class CellRenderer extends DefaultTableCellRenderer {
         @Override
         public Component getTableCellRendererComponent(JTable t, Object v, boolean sel,

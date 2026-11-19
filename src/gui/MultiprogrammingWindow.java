@@ -14,6 +14,7 @@ import java.util.Random;
 
 public class MultiprogrammingWindow extends BasePanel {
 
+    // Color palette used across cards, buttons, and event tables
     private static final Color NAVY   = new Color(0x120078);
     private static final Color BLUE   = new Color(0x3B6FD4);
     private static final Color DARK   = new Color(0x0F1B2D);
@@ -24,6 +25,7 @@ public class MultiprogrammingWindow extends BasePanel {
     private static final Color RUN    = new Color(0x1F57E0);
     private static final Color ACCENT = new Color(0x3EA0FF);
 
+    // Job queue table model (Jobs ID is read-only; Arrival and Burst are editable)
     private final DefaultTableModel jobModel = new DefaultTableModel(
             new String[]{"Jobs", "Arrival Time", "Burst Time"}, 0) {
         @Override
@@ -33,8 +35,10 @@ public class MultiprogrammingWindow extends BasePanel {
     };
     private final JTable jobTable = new JTable(jobModel);
 
+    // Timeline text area logging arrival and termination timestamps
     private final JTextArea timelineArea = new JTextArea();
 
+    // Event-driven processor-sharing simulation table
     private final DefaultTableModel simModel = new DefaultTableModel(
             new String[]{"Time", "Event", "Jobs", "%CPU/Job", "Elapsed", "Headway/Job", "Jobs", "Left"}, 0) {
         @Override
@@ -44,6 +48,7 @@ public class MultiprogrammingWindow extends BasePanel {
     };
     private final JTable simTable = new JTable(simModel);
 
+    // Summary metrics table (total jobs, finish time, avg turnaround, avg waiting)
     private final DefaultTableModel sumModel = new DefaultTableModel(
             new String[]{"Measure", "Value"}, 0) {
         @Override
@@ -53,6 +58,7 @@ public class MultiprogrammingWindow extends BasePanel {
     };
     private final JTable sumTable = new JTable(sumModel);
 
+    // Initializes the Multiprogramming window and runs the initial sample workload
     public MultiprogrammingWindow() {
         super("Multiprogramming");
 
@@ -197,6 +203,7 @@ public class MultiprogrammingWindow extends BasePanel {
         return right;
     }
 
+    // Applies light theme styling to the left Job Queue table
     private void styleLightTable(JTable t) {
         t.setRowHeight(26);
         t.setGridColor(BLUE);
@@ -243,6 +250,7 @@ public class MultiprogrammingWindow extends BasePanel {
         t.getTableHeader().setReorderingAllowed(false);
     }
 
+    // Applies dark theme styling and column widths to the Simulation and Summary tables
     private void styleDarkTable(JTable t, boolean isEventTable) {
         t.setRowHeight(26);
         t.setGridColor(new Color(0x24385A));
@@ -325,6 +333,7 @@ public class MultiprogrammingWindow extends BasePanel {
         }
     }
 
+    // Populates the Job Queue with 4 default sample jobs (J1 to J4)
     private void loadReferenceSample() {
         jobModel.setRowCount(0);
         jobModel.addRow(new Object[]{"J1", "12.000", "5.000"});
@@ -333,12 +342,14 @@ public class MultiprogrammingWindow extends BasePanel {
         jobModel.addRow(new Object[]{"J4", "4.000", "6.855"});
     }
 
+    // Appends a new job row to the Job Queue
     private void addJobRow() {
         stopEditing();
         int next = jobModel.getRowCount() + 1;
         jobModel.addRow(new Object[]{"J" + next, "0.000", "4.000"});
     }
 
+    // Removes the selected job row (or the last row) and renumbers remaining jobs
     private void removeJobRow() {
         stopEditing();
         int count = jobModel.getRowCount();
@@ -351,6 +362,7 @@ public class MultiprogrammingWindow extends BasePanel {
         }
     }
 
+    // Fills all current job rows with random arrival and burst times and runs simulation
     private void randomizeJobs() {
         stopEditing();
         int rows = jobModel.getRowCount();
@@ -370,6 +382,7 @@ public class MultiprogrammingWindow extends BasePanel {
         runSimulation();
     }
 
+    // Clears all job values, simulation rows, summary metrics, and timeline text
     private void clearAllJobs() {
         stopEditing();
         jobModel.setRowCount(0);
@@ -381,6 +394,7 @@ public class MultiprogrammingWindow extends BasePanel {
         timelineArea.setText("");
     }
 
+    // Commits any active cell edit in the Job Queue table
     private void stopEditing() {
         if (jobTable.isEditing()) jobTable.getCellEditor().stopCellEditing();
     }
@@ -449,10 +463,11 @@ public class MultiprogrammingWindow extends BasePanel {
         // Populate Timeline box
         timelineArea.setText(String.join("\n", res.timelineLogs));
         timelineArea.setCaretPosition(0);
-        
+
         adjustEventColumnWidths();
     }
 
+    // Creates a rounded button with custom background color
     private JButton makeButton(String text, Color bg) {
         JButton b = new JButton(text) {
             @Override
@@ -477,6 +492,7 @@ public class MultiprogrammingWindow extends BasePanel {
         return b;
     }
 
+    // JPanel with anti-aliased rounded corners
     private static class RoundedPanel extends JPanel {
         private final int radius;
         RoundedPanel(int radius, Color bg) {

@@ -13,6 +13,7 @@ import java.util.List;
 
 public class PagingWindow extends BasePanel {
 
+    // Color palette used across cards, buttons, and the byte-level memory diagram
     private static final Color NAVY   = new Color(0x120078);
     private static final Color BLUE   = new Color(0x3B6FD4);
     private static final Color DARK   = new Color(0x0F1B2D);
@@ -23,23 +24,28 @@ public class PagingWindow extends BasePanel {
     private static final Color RUN    = new Color(0x1F57E0);
     private static final Color ACCENT = new Color(0x3EA0FF);
 
+    // Input fields for page size, total physical frames, and logical addresses
     private final JTextField pageSizeField = new JTextField("4", 4);
     private final JTextField framesField   = new JTextField("8", 4);
     private final JTextField addrField     = new JTextField("0 3 4 13");
 
+    // Editable Page -> Frame mapping table
     private final DefaultTableModel pageModel = new DefaultTableModel(
             new String[]{"Page", "Frame"}, 0);
     private final JTable pageTable = new JTable(pageModel);
 
+    // Read-only translation results table
     private final DefaultTableModel resModel = new DefaultTableModel(
             new String[]{"Logical", "Page", "Offset", "Frame", "Physical"}, 0) {
         @Override public boolean isCellEditable(int r, int c) { return false; }
     };
     private final JTable resTable = new JTable(resModel);
 
+    // Byte size summary label and custom logical-to-physical memory diagram
     private final JLabel memSummaryLabel = new JLabel("16 B logical  \u00B7  32 B physical");
     private final ByteMemoryMapPanel mapPanel = new ByteMemoryMapPanel();
 
+    // Initializes the Paging window and loads the default sample page table
     public PagingWindow() {
         super("Paging");
 
@@ -59,12 +65,12 @@ public class PagingWindow extends BasePanel {
         loadSampleData();
     }
 
-    // ================= LEFT (Memory setup + Page table + Addresses) =================
+    // Builds the left column containing Memory setup, Page table, and Addresses cards
     private JPanel buildLeft() {
         JPanel left = new JPanel(new BorderLayout(0, 10));
         left.setOpaque(false);
 
-        // Card 1: Memory setup
+        // Card 1: Memory setup (Page size & Frames)
         RoundedPanel setupCard = new RoundedPanel(18, CARD);
         setupCard.setLayout(new BorderLayout(0, 6));
         setupCard.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
@@ -95,7 +101,7 @@ public class PagingWindow extends BasePanel {
         setupCard.add(setupTitle, BorderLayout.NORTH);
         setupCard.add(setupRow, BorderLayout.CENTER);
 
-        // Card 2: Page table + 2x2 buttons
+        // Card 2: Page table + Add/Remove/Randomize/Clear buttons
         RoundedPanel tableCard = new RoundedPanel(20, CARD);
         tableCard.setLayout(new BorderLayout(0, 8));
         tableCard.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
@@ -130,7 +136,7 @@ public class PagingWindow extends BasePanel {
         tableCard.add(sp, BorderLayout.CENTER);
         tableCard.add(btnGrid, BorderLayout.SOUTH);
 
-        // Card 3: Addresses + Run Simulation
+        // Card 3: Logical Addresses input + Run Simulation button
         RoundedPanel addrCard = new RoundedPanel(18, CARD);
         addrCard.setLayout(new BorderLayout(0, 6));
         addrCard.setBorder(BorderFactory.createEmptyBorder(10, 14, 10, 14));
@@ -162,13 +168,13 @@ public class PagingWindow extends BasePanel {
         return left;
     }
 
-    // ================= RIGHT (Memory map + Results table) =================
+    // Builds the right dark panel containing the byte-level Memory map and Results table
     private JPanel buildRight() {
         RoundedPanel panel = new RoundedPanel(24, DARK);
         panel.setLayout(new BorderLayout(0, 10));
         panel.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
 
-        // Header bar: "Memory map   16 B logical · 32 B physical"
+        // Header bar showing total logical and physical bytes
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
         topBar.setOpaque(false);
         JLabel title = new JLabel("Memory map");
@@ -181,7 +187,7 @@ public class PagingWindow extends BasePanel {
         topBar.add(title);
         topBar.add(memSummaryLabel);
 
-        // Center: Byte-level Memory Map + Legend
+        // Center: Byte-level Memory Map + color legend
         JPanel mapWrap = new JPanel(new BorderLayout(0, 6));
         mapWrap.setOpaque(false);
         mapWrap.add(mapPanel, BorderLayout.CENTER);
@@ -210,6 +216,7 @@ public class PagingWindow extends BasePanel {
         return panel;
     }
 
+    // Builds the legend bar explaining colors and P/F/d notation in the diagram
     private JPanel buildLegendBar() {
         RoundedPanel leg = new RoundedPanel(12, new Color(0x0B1320));
         leg.setLayout(new GridLayout(2, 1, 0, 2));
@@ -231,6 +238,7 @@ public class PagingWindow extends BasePanel {
         return leg;
     }
 
+    // Creates a small colored square and label for the legend bar
     private JPanel legendChip(Color c, String text) {
         JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
         p.setOpaque(false);
@@ -245,7 +253,7 @@ public class PagingWindow extends BasePanel {
         return p;
     }
 
-    // ================= STYLING & DATA HELPERS =================
+    // Applies centered bold styling to small setup text fields
     private void styleInput(JTextField tf, int w, int h) {
         tf.setFont(new Font("Segoe UI", Font.BOLD, 13));
         tf.setHorizontalAlignment(SwingConstants.CENTER);
@@ -253,6 +261,7 @@ public class PagingWindow extends BasePanel {
         tf.setBorder(BorderFactory.createLineBorder(BLUE, 1));
     }
 
+    // Styles either the light Page table or the dark Results table
     private void styleTable(JTable t, boolean darkTheme) {
         t.setRowHeight(26);
         t.setGridColor(darkTheme ? new Color(0x24385A) : BLUE);
@@ -304,7 +313,7 @@ public class PagingWindow extends BasePanel {
         }
     }
 
-    /** Loads the exact sample from your reference screenshot: Page size 4, Frames 8, Pages 0..3 -> 2,5,1,7, Addresses: 0 3 4 13 */
+    // Loads a default sample (Page size 4, Frames 8, Pages 0..3 -> 2,5,1,7) and runs simulation
     private void loadSampleData() {
         pageSizeField.setText("4");
         framesField.setText("8");
@@ -317,18 +326,19 @@ public class PagingWindow extends BasePanel {
         runSimulation();
     }
 
+    // Assigns unique random frames to all current page rows, generates sample addresses, and runs
     private void randomizeData() {
         stopEditing();
         int ps = parsePos(pageSizeField.getText(), 4);
         int nf = parsePos(framesField.getText(), 8);
 
-        // Gamitin ang actual current row count ng table (kung 0, default to 4)
+        // Use current row count in the Page table (defaulting to 4 if empty)
         int numPages = pageModel.getRowCount();
         if (numPages <= 0) {
             numPages = Math.min(4, nf);
         }
 
-        // Kung mas maraming pages ang dinagdag kaysa sa Frames, i-adjust ang Frames para kasya lahat
+        // Expand Frames count automatically if there are more pages than available frames
         if (numPages > nf) {
             nf = numPages;
             framesField.setText(String.valueOf(nf));
@@ -338,7 +348,7 @@ public class PagingWindow extends BasePanel {
         for (int f = 0; f < nf; f++) framePool.add(f);
         Collections.shuffle(framePool);
 
-        // I-keep yung existing Page numbers (o 0..numPages-1 kung blank) at i-assign ng random unique frames
+        // Keep existing page numbers and assign unique shuffled frames
         List<Integer> pagesInTable = new ArrayList<>();
         for (int i = 0; i < numPages; i++) {
             String pStr = cell(i, 0);
@@ -366,15 +376,18 @@ public class PagingWindow extends BasePanel {
         runSimulation();
     }
 
+    // Commits any active cell edit in the Page table
     private void stopEditing() {
         if (pageTable.isEditing()) pageTable.getCellEditor().stopCellEditing();
     }
 
+    // Appends a new page row to the Page table
     private void addRow() {
         stopEditing();
         pageModel.addRow(new Object[]{String.valueOf(pageModel.getRowCount()), ""});
     }
 
+    // Removes the selected page row (or the last row) and refreshes the preview
     private void removeRow() {
         stopEditing();
         if (pageModel.getRowCount() == 0) return;
@@ -384,6 +397,7 @@ public class PagingWindow extends BasePanel {
         refreshPreview();
     }
 
+    // Resets the Page table to 4 blank mappings and clears results and addresses
     private void clearAll() {
         stopEditing();
         pageModel.setRowCount(0);
@@ -393,6 +407,7 @@ public class PagingWindow extends BasePanel {
         refreshPreview();
     }
 
+    // Updates the memory map preview when setup fields or page table cells change
     private void refreshPreview() {
         int ps = parsePos(pageSizeField.getText(), 4);
         int nf = parsePos(framesField.getText(), 8);
@@ -403,7 +418,7 @@ public class PagingWindow extends BasePanel {
                 Collections.emptySet(), Collections.emptySet(), Collections.emptySet(), Collections.emptyMap());
     }
 
-    // ================= EXECUTION =================
+    // Validates inputs, translates logical addresses, and updates the Results table and diagram
     private void runSimulation() {
         stopEditing();
 
@@ -429,7 +444,7 @@ public class PagingWindow extends BasePanel {
                 int p = Integer.parseInt(pStr);
                 int f = Integer.parseInt(fStr);
                 if (p < 0 || f < 0) throw new NumberFormatException();
-                
+
                 if (map.containsKey(p)) {
                     JOptionPane.showMessageDialog(this, "Duplicate Page " + p + " in page table.");
                     return;
@@ -464,10 +479,10 @@ public class PagingWindow extends BasePanel {
             }
         }
 
-        // Call LOGICS.PagingLogic
+        // Perform address translation via PagingLogic
         PagingResult res = PagingLogic.translateDetailed(pageSize, numFrames, map, addresses);
 
-        // Populate 5-column Results Table
+        // Populate the 5-column Results table
         resModel.setRowCount(0);
         for (TranslationRow r : res.rows) {
             resModel.addRow(new Object[]{
@@ -488,6 +503,7 @@ public class PagingWindow extends BasePanel {
                 res.translatedLogicalBytes, res.faultedLogicalBytes, res.translatedPhysicalBytes, res.byteArrows);
     }
 
+    // Reads valid Page -> Frame entries without showing validation dialogs
     private Map<Integer, Integer> readPageTableSilently() {
         Map<Integer, Integer> map = new LinkedHashMap<>();
         for (int i = 0; i < pageModel.getRowCount(); i++) {
@@ -500,6 +516,7 @@ public class PagingWindow extends BasePanel {
         return map;
     }
 
+    // Parses a positive integer or falls back to a default value
     private int parsePos(String s, int def) {
         try {
             int v = Integer.parseInt(s.trim());
@@ -509,12 +526,13 @@ public class PagingWindow extends BasePanel {
         }
     }
 
+    // Safely reads and trims a cell string value
     private String cell(int r, int c) {
         Object o = pageModel.getValueAt(r, c);
         return o == null ? "" : o.toString().trim();
     }
 
-    // ================= BYTE-LEVEL MEMORY MAP DIAGRAM =================
+    // Custom panel drawing byte-level Logical and Physical memory columns with curved translation arrows
     private static class ByteMemoryMapPanel extends JPanel {
         private int pageSize = 4;
         private int numPages = 4;
@@ -530,6 +548,7 @@ public class PagingWindow extends BasePanel {
             setPreferredSize(new Dimension(360, 260));
         }
 
+        // Updates memory dimensions, highlights, and arrow mappings, then repaints
         void setData(int pageSize, int numPages, int numFrames, Map<Integer, Integer> pageTable,
                      Set<Integer> transLog, Set<Integer> faultLog, Set<Integer> transPhys,
                      Map<Integer, Integer> arrows) {
@@ -544,6 +563,7 @@ public class PagingWindow extends BasePanel {
             repaint();
         }
 
+        // Renders Logical memory slots, Physical memory slots, and curved mapping arrows
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -598,7 +618,7 @@ public class PagingWindow extends BasePanel {
 
                 g2.fillRect(leftX, y1, colW, sh);
 
-                // Page boundary line (thicker) vs byte boundary line
+                // Draw thicker page boundary lines vs thinner byte lines
                 if (d == 0) {
                     g2.setColor(new Color(0x6C92CC));
                     g2.drawLine(leftX, y1, leftX + colW, y1);
@@ -664,7 +684,7 @@ public class PagingWindow extends BasePanel {
             g2.setColor(new Color(0x6C92CC));
             g2.drawLine(rightX, topY + availH, rightX + colW, topY + availH);
 
-            // Draw Smooth Mapping Arrows for Translated Bytes
+            // Draw smooth cubic Bezier arrows connecting translated logical and physical bytes
             Stroke old = g2.getStroke();
             g2.setStroke(new BasicStroke(1.8f));
             for (Map.Entry<Integer, Integer> entry : arrows.entrySet()) {
@@ -691,7 +711,7 @@ public class PagingWindow extends BasePanel {
         }
     }
 
-    // ================= HELPERS =================
+    // Creates a rounded button with custom background color
     private JButton makeButton(String text, Color bg) {
         JButton b = new JButton(text) {
             @Override
@@ -715,6 +735,7 @@ public class PagingWindow extends BasePanel {
         return b;
     }
 
+    // JPanel with anti-aliased rounded corners
     private static class RoundedPanel extends JPanel {
         private final int radius;
         RoundedPanel(int radius, Color bg) {

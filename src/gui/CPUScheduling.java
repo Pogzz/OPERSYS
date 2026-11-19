@@ -12,6 +12,7 @@ import java.util.Random;
 
 public class CPUScheduling extends BasePanel {
 
+    // Color palette used across buttons, tables, metric cards, and the Gantt chart
     private static final Color NAVY   = new Color(0x120078);
     private static final Color BLUE   = new Color(0x3B6FD4);
     private static final Color DARK   = new Color(0x0F1B2D);
@@ -22,6 +23,7 @@ public class CPUScheduling extends BasePanel {
     private static final Color RUN    = new Color(0x1F57E0);
     private static final Color ACCENT = new Color(0x3EA0FF);
 
+    // Supported CPU scheduling algorithms shown in the dropdown
     private static final String[] ALGOS = {
             "FCFS",
             "SJF (Non-Preemptive)",
@@ -31,21 +33,25 @@ public class CPUScheduling extends BasePanel {
             "Round Robin"
     };
 
+    // Top algorithm selector and Round Robin time quantum controls
     private final JComboBox<String> algoBox = new JComboBox<>(ALGOS);
     private final JLabel quantumLbl = new JLabel("Quantum:");
     private final JTextField quantumField = new JTextField("2", 3);
 
+    // Process input table model (Job column is locked; AT, BT, and Priority are editable)
     private final DefaultTableModel model = new DefaultTableModel(
             new String[]{"Job", "AT", "BT", "Priority"}, 0) {
         @Override public boolean isCellEditable(int r, int c) { return c != 0; }
     };
     private final JTable table = new JTable(model);
 
+    // Visualization and output components on the right panel
     private final GanttPanel gantt = new GanttPanel();
     private final JLabel awtLabel = bigNumber();
     private final JLabel atatLabel = bigNumber();
     private final JTextArea log = new JTextArea();
 
+    // Initializes the CPU Scheduling window with left inputs and right results panel
     public CPUScheduling() {
         super("CPU Scheduling");
 
@@ -66,11 +72,12 @@ public class CPUScheduling extends BasePanel {
         updateQuantumVisibility();
     }
 
-    // ================= LEFT =================
+    // Builds the left panel containing algorithm dropdown, process table, and action buttons
     private JPanel buildLeft() {
         JPanel left = new JPanel(new BorderLayout(0, 10));
         left.setOpaque(false);
 
+        // Top bar for selecting the scheduling algorithm and Round Robin quantum
         JPanel algoRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
         algoRow.setOpaque(false);
         JLabel al = new JLabel("Algorithm");
@@ -84,6 +91,7 @@ public class CPUScheduling extends BasePanel {
         algoRow.add(quantumLbl);
         algoRow.add(quantumField);
 
+        // Card holding the process table and control buttons
         RoundedPanel card = new RoundedPanel(24, CARD);
         card.setLayout(new BorderLayout(0, 10));
         card.setBorder(BorderFactory.createEmptyBorder(14, 14, 14, 14));
@@ -126,7 +134,7 @@ public class CPUScheduling extends BasePanel {
         return left;
     }
 
-    // ================= RIGHT =================
+    // Builds the right dark panel containing the Gantt chart, AWT/ATAT cards, and execution log
     private JPanel buildRight() {
         RoundedPanel panel = new RoundedPanel(24, DARK);
         panel.setLayout(new BorderLayout(0, 10));
@@ -173,6 +181,7 @@ public class CPUScheduling extends BasePanel {
         return panel;
     }
 
+    // Creates a rounded metric card displaying a caption and large numeric readout
     private JPanel metricCard(String title, JLabel value) {
         RoundedPanel c = new RoundedPanel(16, DARK2);
         c.setLayout(new BorderLayout());
@@ -185,6 +194,7 @@ public class CPUScheduling extends BasePanel {
         return c;
     }
 
+    // Creates a large centered light-blue label for AWT and ATAT metrics
     private static JLabel bigNumber() {
         JLabel l = new JLabel("0.00", SwingConstants.CENTER);
         l.setForeground(ACCENT);
@@ -192,7 +202,7 @@ public class CPUScheduling extends BasePanel {
         return l;
     }
 
-    // ================= TABLE =================
+    // Applies row height, grid borders, cell centering, and navy header styling to the process table
     private void styleTable() {
         table.setRowHeight(30);
         table.setGridColor(BLUE);
@@ -233,27 +243,31 @@ public class CPUScheduling extends BasePanel {
         table.getTableHeader().setReorderingAllowed(false);
     }
 
+    // Resets the process table to 5 empty rows labeled P1 through P5
     private void resetTable() {
         model.setRowCount(0);
         for (int i = 0; i < 5; i++) model.addRow(new Object[]{"P" + (i + 1), "", "", ""});
     }
 
+    // Renumbers all Job IDs sequentially (P1, P2, ...) after a row is removed
     private void renumber() {
         for (int i = 0; i < model.getRowCount(); i++) model.setValueAt("P" + (i + 1), i, 0);
     }
 
+    // Commits any active cell edit in the process table
     private void stopEditing() {
         if (table.isEditing()) table.getCellEditor().stopCellEditing();
     }
 
+    // Appends a new process row to the table and scrolls it into view
     private void addRow() {
         stopEditing();
-        // No arbitrary fixed row limit (per rubric Section III)
         model.addRow(new Object[]{"P" + (model.getRowCount() + 1), "", "", ""});
         int lastRow = model.getRowCount() - 1;
         table.scrollRectToVisible(table.getCellRect(lastRow, 0, true));
     }
 
+    // Removes the selected process row (or the last row) and renumbers remaining rows
     private void removeRow() {
         stopEditing();
         if (model.getRowCount() == 0) return;
@@ -263,7 +277,7 @@ public class CPUScheduling extends BasePanel {
         renumber();
     }
 
-    /** Fills all current rows (whether 5 or 50+) with random valid values for quick small/large dataset testing. */
+    // Fills all current rows with random AT, BT, and Priority values and runs the simulator
     private void randomizeCurrentRows() {
         stopEditing();
         int rows = model.getRowCount();
@@ -283,6 +297,7 @@ public class CPUScheduling extends BasePanel {
         runSimulator();
     }
 
+    // Clears all table inputs, resets the Gantt chart, and resets AWT/ATAT metrics
     private void clearAll() {
         stopEditing();
         resetTable();
@@ -292,13 +307,14 @@ public class CPUScheduling extends BasePanel {
         log.setText("Cleared.");
     }
 
+    // Shows the Time Quantum input only when Round Robin is selected
     private void updateQuantumVisibility() {
         boolean rr = "Round Robin".equals(algoBox.getSelectedItem());
         quantumLbl.setVisible(rr);
         quantumField.setVisible(rr);
     }
 
-    // ================= SIMULATION =================
+    // Validates inputs, runs the selected CPU scheduling algorithm, and updates results
     private void runSimulator() {
         stopEditing();
         List<Process> ps = readProcs();
@@ -332,7 +348,7 @@ public class CPUScheduling extends BasePanel {
         gantt.setData(names, res.segments, res.maxTime);
     }
 
-    /** Reads valid rows without arbitrary upper value caps. Returns null if there is an input error. */
+    // Parses valid process rows from the table, returning null if any input is invalid
     private List<Process> readProcs() {
         List<Process> list = new ArrayList<>();
         for (int i = 0; i < model.getRowCount(); i++) {
@@ -355,12 +371,13 @@ public class CPUScheduling extends BasePanel {
         return list;
     }
 
+    // Safely reads and trims a cell string value
     private String cell(int r, int c) {
         Object o = model.getValueAt(r, c);
         return o == null ? "" : o.toString().trim();
     }
 
-    // ================= GANTT CHART (SCROLLABLE FOR LARGE DATASETS) =================
+    // Custom scrollable panel that renders the multi-row CPU execution Gantt chart
     private static class GanttPanel extends JPanel {
         private static final Color[] PALETTE = {
                 new Color(0x4DA3FF), new Color(0x3DD6A8), new Color(0xFFB454),
@@ -376,6 +393,7 @@ public class CPUScheduling extends BasePanel {
             setData(new ArrayList<>(), new ArrayList<>(), 0);
         }
 
+        // Updates process rows, execution segments, and total timeline duration
         void setData(List<String> n, List<int[]> s, int max) {
             names = new ArrayList<>(n);
             for (int i = names.size(); i < 5; i++) names.add("P" + (i + 1));
@@ -387,6 +405,7 @@ public class CPUScheduling extends BasePanel {
             repaint();
         }
 
+        // Draws time grid lines, process row labels, and colored execution blocks
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -414,6 +433,7 @@ public class CPUScheduling extends BasePanel {
             g2.setFont(new Font("Segoe UI", Font.PLAIN, 11));
             FontMetrics fm = g2.getFontMetrics();
 
+            // Draw vertical time ticks and bottom axis labels
             for (int tt = 0; tt <= axisMax; tt += step) {
                 int x = left + (int) ((long) pw * tt / axisMax);
                 g2.setColor(new Color(0x24385A));
@@ -424,6 +444,7 @@ public class CPUScheduling extends BasePanel {
             }
             g2.drawString("Time", left + pw / 2 - fm.stringWidth("Time") / 2, h - 6);
 
+            // Draw horizontal process lanes and left PID labels
             for (int r = 0; r < rows; r++) {
                 int y = top + r * rowH;
                 g2.setColor(new Color(0x1C2E4D));
@@ -432,6 +453,7 @@ public class CPUScheduling extends BasePanel {
                 g2.drawString(names.get(r), 8, y + rowH / 2 + fm.getAscent() / 2 - 2);
             }
 
+            // Draw colored execution bars for each scheduled time slice
             for (int[] s : segs) {
                 int r = s[0];
                 int x1 = left + (int) ((long) pw * s[1] / axisMax);
@@ -452,7 +474,7 @@ public class CPUScheduling extends BasePanel {
         }
     }
 
-    // ================= HELPERS =================
+    // Creates a rounded button with custom background color
     private JButton makeButton(String text, Color bg) {
         JButton b = new JButton(text) {
             @Override
@@ -476,6 +498,7 @@ public class CPUScheduling extends BasePanel {
         return b;
     }
 
+    // JPanel with anti-aliased rounded corners
     private static class RoundedPanel extends JPanel {
         private final int radius;
         RoundedPanel(int radius, Color bg) {
