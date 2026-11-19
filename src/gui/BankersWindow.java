@@ -49,7 +49,7 @@ public class BankersWindow extends BasePanel {
         randomizeData();
     }
 
-    // Builds the top control bar with dimension inputs, action buttons, and total resource fields
+ // Builds the top control bar with dimension inputs, action buttons, and scrollable total resource fields
     private JPanel buildTopControls() {
         JPanel wrapper = new JPanel(new BorderLayout(0, 8));
         wrapper.setOpaque(false);
@@ -88,13 +88,29 @@ public class BankersWindow extends BasePanel {
         row1.add(dimPanel, BorderLayout.WEST);
         row1.add(runBtn, BorderLayout.EAST);
 
-        // Row 2: Total resources inputs and +/- buttons for processes and resources
+        // Row 2: Pinned "Total resources:" label + horizontally scrollable resource inputs + +/- buttons
         JPanel row2 = new JPanel(new BorderLayout(10, 0));
         row2.setOpaque(false);
 
-        totalResPanel.setOpaque(false);
+        JPanel totalWrap = new JPanel(new BorderLayout(6, 0));
+        totalWrap.setOpaque(false);
 
-        JPanel rowColActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        JLabel trLbl = new JLabel("Total resources:");
+        trLbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        totalWrap.add(trLbl, BorderLayout.WEST);
+
+        totalResPanel.setOpaque(false);
+        JScrollPane totalScroll = new JScrollPane(totalResPanel,
+                JScrollPane.VERTICAL_SCROLLBAR_NEVER,
+                JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        totalScroll.setBorder(BorderFactory.createEmptyBorder());
+        totalScroll.setOpaque(false);
+        totalScroll.getViewport().setOpaque(false);
+        totalScroll.getHorizontalScrollBar().setUnitIncrement(16);
+        totalScroll.setPreferredSize(new Dimension(100, 44));
+        totalWrap.add(totalScroll, BorderLayout.CENTER);
+
+        JPanel rowColActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 4));
         rowColActions.setOpaque(false);
 
         JButton addProcBtn = makeButton("+ Process", GREEN, 100, 28);
@@ -134,7 +150,7 @@ public class BankersWindow extends BasePanel {
                 mRes--;
                 resField.setText(String.valueOf(mRes));
                 rebuildGrid(nProc, mRes);
-                randomizeData();
+                recalculateTable();
             }
         });
 
@@ -143,7 +159,7 @@ public class BankersWindow extends BasePanel {
         rowColActions.add(addResBtn);
         rowColActions.add(delResBtn);
 
-        row2.add(totalResPanel, BorderLayout.CENTER);
+        row2.add(totalWrap, BorderLayout.CENTER);
         row2.add(rowColActions, BorderLayout.EAST);
 
         wrapper.add(row1, BorderLayout.NORTH);
@@ -248,19 +264,36 @@ public class BankersWindow extends BasePanel {
         return "R" + (idx + 1);
     }
 
-    // Reconstructs the Total Resources inputs and the 4-section matrix table for pCount x rCount
+ // Reconstructs Total Resources and the matrix table while preserving existing values
     private void rebuildGrid(int pCount, int rCount) {
-        // Rebuild Total Resources input boxes
-        totalResPanel.removeAll();
-        JLabel trLbl = new JLabel("Total resources:");
-        trLbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        totalResPanel.add(trLbl);
+        stopEditing();
 
+        // Snapshot existing Total Resources values
+        String[] oldTotals = new String[totalFields.length];
+        for (int j = 0; j < totalFields.length; j++) {
+            oldTotals[j] = totalFields[j].getText();
+        }
+
+        // Snapshot existing Allocation and Max values from the old table model
+        int oldRows = (model != null) ? model.getRowCount() : 0;
+        int oldRes  = (model != null && model.getColumnCount() > 1) ? (model.getColumnCount() - 1) / 4 : 0;
+        Object[][] oldAlloc = new Object[oldRows][oldRes];
+        Object[][] oldMax   = new Object[oldRows][oldRes];
+        for (int i = 0; i < oldRows; i++) {
+            for (int j = 0; j < oldRes; j++) {
+                oldAlloc[i][j] = model.getValueAt(i, 1 + j);
+                oldMax[i][j]   = model.getValueAt(i, 1 + oldRes + j);
+            }
+        }
+
+     // Rebuild Total Resources boxes inside the horizontal scroll pane
+        totalResPanel.removeAll();
         totalFields = new JTextField[rCount];
         for (int j = 0; j < rCount; j++) {
             JLabel rName = new JLabel(resourceName(j));
             rName.setFont(new Font("Segoe UI", Font.BOLD, 13));
-            JTextField tf = new JTextField("10", 3);
+            String val = (j < oldTotals.length) ? oldTotals[j] : "";
+            JTextField tf = new JTextField(val, 3);
             styleInputField(tf);
             tf.setPreferredSize(new Dimension(40, 28));
             tf.addActionListener(e -> recalculateTable());
@@ -271,7 +304,14 @@ public class BankersWindow extends BasePanel {
         totalResPanel.revalidate();
         totalResPanel.repaint();
 
-        // Build columns for Process | Allocation | Max | Available | Need
+        // Auto-scroll to the newly added resource when expanding
+        if (rCount > oldTotals.length && totalFields.length > 0) {
+            SwingUtilities.invokeLater(() ->
+                totalResPanel.scrollRectToVisible(totalFields[rCount - 1].getBounds())
+            );
+        }
+
+        // Build new table model and restore overlapping Allocation & Max cells
         int totalCols = 1 + (rCount * 4);
         String[] cols = new String[totalCols];
         cols[0] = "";
@@ -284,7 +324,6 @@ public class BankersWindow extends BasePanel {
         model = new DefaultTableModel(cols, 0) {
             @Override
             public boolean isCellEditable(int r, int c) {
-                // Allow editing only in Allocation and Max columns
                 return c >= 1 && c <= 2 * mRes;
             }
         };
@@ -295,10 +334,17 @@ public class BankersWindow extends BasePanel {
             for (int c = 1; c < totalCols; c++) {
                 row[c] = (c > 2 * mRes && c <= 3 * mRes && i > 0) ? "" : "0";
             }
+            // Copy back previous Allocation and Max values
+            if (i < oldRows) {
+                int copyCols = Math.min(rCount, oldRes);
+                for (int j = 0; j < copyCols; j++) {
+                    row[1 + j]          = oldAlloc[i][j];
+                    row[1 + rCount + j] = oldMax[i][j];
+                }
+            }
             model.addRow(row);
         }
 
-        // Recalculate Available and Need automatically whenever Allocation or Max changes
         model.addTableModelListener(e -> {
             if (e.getColumn() >= 1 && e.getColumn() <= 2 * mRes) {
                 SwingUtilities.invokeLater(this::recalculateTable);
