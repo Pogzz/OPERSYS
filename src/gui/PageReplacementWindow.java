@@ -22,7 +22,7 @@ public class PageReplacementWindow extends BasePanel {
     private final JTextField refField = new RoundField("", 24, "e.g. 0 1 2 3 4 5 6");
     private final JTextField lengthField = numberField("10");
     private final JTextField framesField = numberField("3");
-    private final JComboBox<String> algo = new JComboBox<>(new String[]{"FIFO", "LRU", "Optimal"});
+    private final JComboBox<String> algo = new JComboBox<>(new String[]{"FIFO", "LRU", "Optimal", "NRU"});
 
     // Page replacement simulation grid table
     private final DefaultTableModel model = new DefaultTableModel();
