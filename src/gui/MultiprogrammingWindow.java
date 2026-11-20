@@ -121,7 +121,7 @@ public class MultiprogrammingWindow extends BasePanel {
         btnGrid.add(randBtn);
         btnGrid.add(clearBtn);
 
-        JButton runBtn = makeButton("\u25B6  Run", RUN);
+        JButton runBtn = makeButton("  Run", RUN);
         runBtn.setPreferredSize(new Dimension(120, 32));
         runBtn.addActionListener(e -> runSimulation());
 

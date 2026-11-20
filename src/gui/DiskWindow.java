@@ -134,7 +134,7 @@ public class DiskWindow extends BasePanel {
         JPanel actionBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         actionBtns.setOpaque(false);
         JButton randBtn = makeButton("Randomize", ORANGE, 108, 30);
-        JButton runBtn  = makeButton("\u25B6  Run", RUN, 96, 30);
+        JButton runBtn  = makeButton(" Run", RUN, 96, 30);
 
         randBtn.addActionListener(e -> generateRandomQueue());
         runBtn.addActionListener(e -> runSimulation());

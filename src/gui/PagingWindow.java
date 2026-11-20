@@ -5,6 +5,8 @@ import LOGICS.PagingLogic.PagingResult;
 import LOGICS.PagingLogic.TranslationRow;
 
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.*;
 import java.awt.*;
 import java.awt.geom.CubicCurve2D;
@@ -89,6 +91,15 @@ public class PagingWindow extends BasePanel {
         frLbl.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         styleInput(framesField, 46, 26);
 
+        // Live-sync the memory map preview whenever Page size or Frames changes
+        DocumentListener setupSync = new DocumentListener() {
+            @Override public void insertUpdate(DocumentEvent e)  { refreshPreview(); }
+            @Override public void removeUpdate(DocumentEvent e)  { refreshPreview(); }
+            @Override public void changedUpdate(DocumentEvent e) { refreshPreview(); }
+        };
+        pageSizeField.getDocument().addDocumentListener(setupSync);
+        framesField.getDocument().addDocumentListener(setupSync);
+
         pageSizeField.addActionListener(e -> refreshPreview());
         framesField.addActionListener(e -> refreshPreview());
 
@@ -117,7 +128,7 @@ public class PagingWindow extends BasePanel {
 
         JButton addBtn  = makeButton("+ Add page", GREEN);
         JButton remBtn  = makeButton("- Remove page", RED);
-        JButton randBtn = makeButton("Randomize", BLUE );
+        JButton randBtn = makeButton("Randomize", BLUE);
         JButton clrBtn  = makeButton("x Clear all", ORANGE);
 
         addBtn.addActionListener(e -> addRow());
@@ -168,7 +179,7 @@ public class PagingWindow extends BasePanel {
         return left;
     }
 
-    // Builds the right dark panel containing the byte-level Memory map and Results table
+    // Builds the right dark panel containing the scrollable byte-level Memory map and Results table
     private JPanel buildRight() {
         RoundedPanel panel = new RoundedPanel(24, DARK);
         panel.setLayout(new BorderLayout(0, 10));
@@ -187,10 +198,17 @@ public class PagingWindow extends BasePanel {
         topBar.add(title);
         topBar.add(memSummaryLabel);
 
-        // Center: Byte-level Memory Map + color legend
+        // Center: Scrollable Byte-level Memory Map + color legend
         JPanel mapWrap = new JPanel(new BorderLayout(0, 6));
         mapWrap.setOpaque(false);
-        mapWrap.add(mapPanel, BorderLayout.CENTER);
+
+        JScrollPane mapSp = new JScrollPane(mapPanel);
+        mapSp.setBorder(BorderFactory.createEmptyBorder());
+        mapSp.setOpaque(false);
+        mapSp.getViewport().setOpaque(false);
+        mapSp.getVerticalScrollBar().setUnitIncrement(16);
+
+        mapWrap.add(mapSp, BorderLayout.CENTER);
         mapWrap.add(buildLegendBar(), BorderLayout.SOUTH);
 
         // Bottom: Results Table (Logical | Page | Offset | Frame | Physical)
@@ -280,7 +298,7 @@ public class PagingWindow extends BasePanel {
                 super.getTableCellRendererComponent(table, v, sel, false, r, c);
                 setHorizontalAlignment(SwingConstants.CENTER);
                 setBorder(BorderFactory.createLineBorder(darkTheme ? new Color(0x24385A) : BLUE, 1));
-                if (darkTheme && c == 4 && "PAGE FAULT".equals(String.valueOf(v))) {
+                if (darkTheme && c == 4 && ("PAGE FAULT".equals(String.valueOf(v)) || "OUT OF RANGE".equals(String.valueOf(v)))) {
                     setForeground(new Color(0xFF7B89));
                     setFont(new Font("Segoe UI", Font.BOLD, 12));
                 } else if (darkTheme) {
@@ -336,6 +354,9 @@ public class PagingWindow extends BasePanel {
         int numPages = pageModel.getRowCount();
         if (numPages <= 0) {
             numPages = Math.min(4, nf);
+            for (int i = 0; i < numPages; i++) {
+                pageModel.addRow(new Object[]{String.valueOf(i), ""});
+            }
         }
 
         // Expand Frames count automatically if there are more pages than available frames
@@ -407,12 +428,12 @@ public class PagingWindow extends BasePanel {
         refreshPreview();
     }
 
-    // Updates the memory map preview when setup fields or page table cells change
+    // Updates the memory map preview whenever setup fields or page table cells change
     private void refreshPreview() {
         int ps = parsePos(pageSizeField.getText(), 4);
         int nf = parsePos(framesField.getText(), 8);
         Map<Integer, Integer> map = readPageTableSilently();
-        int numPages = Math.max(4, map.isEmpty() ? 4 : Collections.max(map.keySet()) + 1);
+        int numPages = Math.max(pageModel.getRowCount(), map.isEmpty() ? 4 : Collections.max(map.keySet()) + 1);
         memSummaryLabel.setText((numPages * ps) + " B logical  \u00B7  " + (nf * ps) + " B physical");
         mapPanel.setData(ps, numPages, nf, map,
                 Collections.emptySet(), Collections.emptySet(), Collections.emptySet(), Collections.emptyMap());
@@ -532,8 +553,10 @@ public class PagingWindow extends BasePanel {
         return o == null ? "" : o.toString().trim();
     }
 
-    // Custom panel drawing byte-level Logical and Physical memory columns with curved translation arrows
+    // Custom scrollable panel drawing byte-level Logical and Physical memory columns with curved arrows
     private static class ByteMemoryMapPanel extends JPanel {
+        private static final int MIN_SLOT_H = 18; // Ensures byte indices and labels always stay legible
+
         private int pageSize = 4;
         private int numPages = 4;
         private int numFrames = 8;
@@ -548,11 +571,11 @@ public class PagingWindow extends BasePanel {
             setPreferredSize(new Dimension(360, 260));
         }
 
-        // Updates memory dimensions, highlights, and arrow mappings, then repaints
+        // Updates memory dimensions, recalculates scrollable preferred height, and repaints
         void setData(int pageSize, int numPages, int numFrames, Map<Integer, Integer> pageTable,
                      Set<Integer> transLog, Set<Integer> faultLog, Set<Integer> transPhys,
                      Map<Integer, Integer> arrows) {
-            this.pageSize = pageSize;
+            this.pageSize = Math.max(1, pageSize);
             this.numPages = Math.max(1, numPages);
             this.numFrames = Math.max(1, numFrames);
             this.pageTable = new LinkedHashMap<>(pageTable);
@@ -560,6 +583,11 @@ public class PagingWindow extends BasePanel {
             this.faultLog = faultLog;
             this.transPhys = transPhys;
             this.arrows = arrows;
+
+            int maxSlots = Math.max(this.numPages * this.pageSize, this.numFrames * this.pageSize);
+            int prefH = Math.max(240, 36 + maxSlots * MIN_SLOT_H);
+            setPreferredSize(new Dimension(360, prefH));
+            revalidate();
             repaint();
         }
 
@@ -570,7 +598,8 @@ public class PagingWindow extends BasePanel {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-            int w = getWidth(), h = getHeight();
+            int w = getWidth();
+            int h = Math.max(getHeight(), getPreferredSize().height);
             g2.setColor(DARK2);
             g2.fillRoundRect(0, 0, w, h, 16, 16);
 
@@ -630,7 +659,7 @@ public class PagingWindow extends BasePanel {
                 g2.drawLine(leftX, y1, leftX, y2);
                 g2.drawLine(leftX + colW, y1, leftX + colW, y2);
 
-                if (sh >= 10) {
+                if (sh >= 12) {
                     g2.setFont(new Font("Consolas", Font.PLAIN, 10));
                     g2.setColor(new Color(0x9BB0D1));
                     String idxStr = String.valueOf(b);
@@ -671,14 +700,14 @@ public class PagingWindow extends BasePanel {
                 g2.drawLine(rightX, y1, rightX, y2);
                 g2.drawLine(rightX + colW, y1, rightX + colW, y2);
 
-                if (sh >= 9) {
-                    g2.setFont(new Font("Consolas", Font.PLAIN, 9));
+                if (sh >= 12) {
+                    g2.setFont(new Font("Consolas", Font.PLAIN, 10));
                     g2.setColor(new Color(0x9BB0D1));
                     String idxStr = String.valueOf(b);
-                    g2.drawString(idxStr, rightX - g2.getFontMetrics().stringWidth(idxStr) - 4, y1 + sh / 2 + 3);
+                    g2.drawString(idxStr, rightX - g2.getFontMetrics().stringWidth(idxStr) - 4, y1 + sh / 2 + 4);
 
                     g2.setColor(isTrans ? Color.BLACK : (isLoaded ? new Color(0xFFD599) : new Color(0x7B93B8)));
-                    g2.drawString("F" + f + " \u00B7 d=" + d, rightX + 8, y1 + sh / 2 + 3);
+                    g2.drawString("F" + f + " \u00B7 d=" + d, rightX + 8, y1 + sh / 2 + 4);
                 }
             }
             g2.setColor(new Color(0x6C92CC));
