@@ -26,10 +26,10 @@ public class MainBg extends JFrame {
         URL backgroundURL = getClass().getResource("/resources/HOME.png");
         ImageIcon originalBackground = new ImageIcon(backgroundURL);
         Image backgroundImage = originalBackground.getImage()
-                .getScaledInstance(1250, 800
+                .getScaledInstance(1920, 800
                 		, Image.SCALE_SMOOTH);
         JLabel background = new JLabel(new ImageIcon(backgroundImage));
-        background.setBounds(0, 0, 1250, 800);
+        background.setBounds(0, 0, 1920, 800);
         mainPanel.add(background, JLayeredPane.DEFAULT_LAYER);
 
         
@@ -207,11 +207,8 @@ public class MainBg extends JFrame {
      fragButton.addActionListener(e -> openApp("Fragmentation"));
      dsButton.addActionListener(e -> openApp("Disk Scheduling"));
      multiButton.addActionListener(e -> openApp("Multiprogramming"));
-     startButton.addActionListener(e -> openApp("CPU Scheduling")); // ang ">" button
+     startButton.addActionListener(e -> openApp("CPU Scheduling")); 
 
-     // =================================
-     // SCREENS: HOME at APP
-     // =================================
      app = new gui.AppPage(() -> screens.show(root, "HOME"));
      root.add(mainPanel, "HOME");
      root.add(app, "APP");

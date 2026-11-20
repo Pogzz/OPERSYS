@@ -22,7 +22,7 @@ public class SegmentationLogic {
         public boolean isValid() { return status.equals("VALID"); }
     }
 
-    // Isang translation = isang row sa Translation Results table
+    // One translation = one row in translation page
     public static Result translate(Map<Integer, Segment> table, int seg, int offset) {
         Segment s = table.get(seg);
         if (s == null)
@@ -43,7 +43,7 @@ public class SegmentationLogic {
         return list;
     }
 
-    // Para sa "+ Add" button: bawal mag-overlap o lumampas sa memory
+    // For the add Button
     public static String validate(Map<Integer, Segment> table, Segment n) {
         if (table.containsKey(n.id)) return "Segment " + n.id + " already exists.";
         if (n.limit <= 0 || n.base < 0) return "Limit must be > 0 and base >= 0.";
@@ -54,7 +54,7 @@ public class SegmentationLogic {
         return null; // OK
     }
 
-    // Para sa "Randomize" button: sunod-sunod, walang overlap
+    // For Randomize Button
     public static Map<Integer, Segment> randomize(int count) {
         Map<Integer, Segment> t = new LinkedHashMap<>();
         Random r = new Random();

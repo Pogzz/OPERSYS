@@ -166,9 +166,6 @@ public class FragmentationWindow extends BasePanel {
         return row;
     }
 
-    // =====================================================================
-    // MIDDLE: Memory Map + stat cards
-    // =====================================================================
     private JPanel buildMap() {
         Rounded card = new Rounded(18, DARK);
         card.setLayout(new BorderLayout(0, 8));
@@ -239,9 +236,6 @@ public class FragmentationWindow extends BasePanel {
         return p;
     }
 
-    // =====================================================================
-    // RIGHT: Compare Strategies + Allocation Results
-    // =====================================================================
     private JPanel buildRight() {
         JPanel col = new JPanel(new GridLayout(2, 1, 0, 10));
         col.setOpaque(false);
@@ -350,9 +344,6 @@ public class FragmentationWindow extends BasePanel {
         }
     }
 
-    // =====================================================================
-    // ACTIONS
-    // =====================================================================
     private void doRun() {
         errorLabel.setText(" ");
         List<Integer> blocks, procs;
@@ -365,7 +356,7 @@ public class FragmentationWindow extends BasePanel {
         }
         hasRun = true;
 
-        // Pangunahing resulta (napiling strategy)
+        // Main Result
         Report r = FragmentationLogic.run(strategy, dynamic, blocks, procs);
         mapPanel.setBlocks(r.blocks);
         internalCard.setValue(r.internal);
@@ -380,7 +371,7 @@ public class FragmentationWindow extends BasePanel {
                     p.status});
         }
 
-        // Compare: patakbuhin ang lahat ng strategy sa parehong input
+        // Compare
         Strategy[] all = Strategy.values();
         Report bestRep = null;
         bestRow = 0;
@@ -408,9 +399,6 @@ public class FragmentationWindow extends BasePanel {
         return l.stream().map(String::valueOf).collect(Collectors.joining(", "));
     }
 
-    // =====================================================================
-    // CUSTOM COMPONENTS
-    // =====================================================================
     private static class HintField extends JTextField {
         private final String hint;
         HintField(String hint) {
@@ -486,7 +474,7 @@ public class FragmentationWindow extends BasePanel {
         }
     }
 
-    /** Outlined card na may title at malaking "12KB" value. */
+    
     private static class StatCard extends JPanel {
         private final JLabel value = new JLabel("\u2014", SwingConstants.CENTER);
         StatCard(String title) {
